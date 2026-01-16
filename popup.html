@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <style>
     body {
-      width: 200px;
+      width: 220px;
       padding: 16px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -19,62 +19,46 @@
       text-align: center;
     }
 
-    .toggle-container {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: rgba(255, 255, 255, 0.2);
+    .mode-selector {
+      background: rgba(255, 255, 255, 0.15);
       border-radius: 8px;
       padding: 12px;
     }
 
-    .toggle-label {
+    .mode-option {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      margin: 4px 0;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .mode-option:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .mode-option input {
+      margin-right: 10px;
+      accent-color: #4ade80;
+    }
+
+    .mode-option label {
       color: white;
       font-size: 13px;
-    }
-
-    .toggle {
-      position: relative;
-      width: 48px;
-      height: 24px;
-    }
-
-    .toggle input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .slider {
-      position: absolute;
       cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(0, 0, 0, 0.3);
-      transition: 0.3s;
-      border-radius: 24px;
+      flex: 1;
     }
 
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 18px;
-      width: 18px;
-      left: 3px;
-      bottom: 3px;
-      background-color: white;
-      transition: 0.3s;
-      border-radius: 50%;
+    .mode-option.selected {
+      background: rgba(255, 255, 255, 0.2);
     }
 
-    input:checked+.slider {
-      background-color: #4ade80;
-    }
-
-    input:checked+.slider:before {
-      transform: translateX(24px);
+    .mode-desc {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.7);
+      margin-top: 2px;
     }
 
     .status {
@@ -83,19 +67,45 @@
       font-size: 12px;
       color: rgba(255, 255, 255, 0.8);
     }
+
+    .icon {
+      font-size: 16px;
+      margin-right: 8px;
+    }
   </style>
 </head>
 
 <body>
   <h1>Furigana Converter</h1>
-  <div class="toggle-container">
-    <span class="toggle-label">Enable</span>
-    <label class="toggle">
-      <input type="checkbox" id="enabled">
-      <span class="slider"></span>
-    </label>
+
+  <div class="mode-selector">
+    <div class="mode-option" data-mode="off">
+      <input type="radio" name="mode" id="mode-off" value="off">
+      <div>
+        <label for="mode-off">關閉</label>
+        <div class="mode-desc">不做任何轉換</div>
+      </div>
+    </div>
+
+    <div class="mode-option" data-mode="bracket">
+      <input type="radio" name="mode" id="mode-bracket" value="bracket">
+      <div>
+        <label for="mode-bracket">原來就有括號標註</label>
+        <div class="mode-desc">轉換 漢字（ひらがな） 格式</div>
+      </div>
+    </div>
+
+    <div class="mode-option" data-mode="auto">
+      <input type="radio" name="mode" id="mode-auto" value="auto">
+      <div>
+        <label for="mode-auto">自動標註所有漢字</label>
+        <div class="mode-desc">使用字典自動標註</div>
+      </div>
+    </div>
   </div>
+
   <div class="status" id="status">載入中...</div>
+
   <script src="popup.js"></script>
 </body>
 

@@ -3,7 +3,7 @@ const FURIGANA_PATTERN = /([\u4E00-\u9FAF0-9０-９]+)[\s\u3000]*[（(][\s\u3000
 
 // Track processed elements
 const processedElements = new WeakSet();
-let isEnabled = true;
+let currentMode = 'bracket'; // 'off', 'bracket', 'auto'
 
 // Japanese number readings dictionary
 const NUMBER_READINGS = {
@@ -154,18 +154,54 @@ function convertToRuby(text) {
   });
 }
 
+// Kanji Unicode range regex
+const KANJI_ONLY_PATTERN = /[\u4E00-\u9FAF]/;
+
+// Auto-annotate text by adding furigana to all kanji using dictionary
+function autoAnnotateText(text) {
+  let result = '';
+  const chars = [...text];
+
+  for (let i = 0; i < chars.length; i++) {
+    const char = chars[i];
+
+    // Check if it's a kanji
+    if (KANJI_ONLY_PATTERN.test(char)) {
+      const readings = typeof KANJI_READINGS !== 'undefined' ? KANJI_READINGS[char] : null;
+      if (readings && readings.length > 0) {
+        // Use first reading (most common)
+        const reading = readings[0];
+        result += `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`;
+      } else {
+        result += char;
+      }
+    } else {
+      result += char;
+    }
+  }
+
+  return result;
+}
+
+// Check if text contains any kanji
+function hasKanji(text) {
+  return KANJI_ONLY_PATTERN.test(text);
+}
+
 function hasFuriganaPattern(text) {
   FURIGANA_PATTERN.lastIndex = 0;
   return FURIGANA_PATTERN.test(text);
 }
 
-function processTextNode(textNode) {
+// Process text node for bracket mode
+function processTextNodeBracket(textNode) {
   const text = textNode.textContent;
   if (!hasFuriganaPattern(text)) return;
 
   const temp = document.createElement('span');
   temp.className = 'furigana-converted';
   temp.dataset.original = text;
+  temp.dataset.mode = 'bracket';
   temp.innerHTML = convertToRuby(text);
 
   const parent = textNode.parentNode;
@@ -175,11 +211,32 @@ function processTextNode(textNode) {
   }
 }
 
-function walkTextNodes(element) {
+// Process text node for auto mode
+function processTextNodeAuto(textNode) {
+  const text = textNode.textContent;
+  if (!hasKanji(text)) return;
+
+  const temp = document.createElement('span');
+  temp.className = 'furigana-converted';
+  temp.dataset.original = text;
+  temp.dataset.mode = 'auto';
+  temp.innerHTML = autoAnnotateText(text);
+
+  const parent = textNode.parentNode;
+  if (parent) {
+    parent.insertBefore(temp, textNode);
+    parent.removeChild(textNode);
+  }
+}
+
+function walkTextNodes(element, mode) {
   if (processedElements.has(element)) return;
 
   const skipTags = ['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'RUBY', 'RT', 'RP'];
   if (skipTags.includes(element.tagName)) return;
+
+  const checkFn = mode === 'auto' ? hasKanji : hasFuriganaPattern;
+  const processFn = mode === 'auto' ? processTextNodeAuto : processTextNodeBracket;
 
   const textNodes = [];
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
@@ -194,18 +251,21 @@ function walkTextNodes(element) {
 
   let node;
   while ((node = walker.nextNode())) {
-    if (hasFuriganaPattern(node.textContent)) textNodes.push(node);
+    if (checkFn(node.textContent)) textNodes.push(node);
   }
 
-  textNodes.forEach(processTextNode);
+  textNodes.forEach(processFn);
   processedElements.add(element);
 }
 
 function processPageContent() {
-  if (!isEnabled) return;
-  document.querySelectorAll('p, span, div, li, td, th, h1, h2, h3, h4, h5, h6').forEach(el => {
-    if (hasFuriganaPattern(el.textContent || '') && !processedElements.has(el)) {
-      walkTextNodes(el);
+  if (currentMode === 'off') return;
+
+  const checkFn = currentMode === 'auto' ? hasKanji : hasFuriganaPattern;
+
+  document.querySelectorAll('p, span, div, li, td, th, h1, h2, h3, h4, h5, h6, a').forEach(el => {
+    if (checkFn(el.textContent || '') && !processedElements.has(el)) {
+      walkTextNodes(el, currentMode);
     }
   });
 }
@@ -218,16 +278,21 @@ function revertFurigana() {
       el.parentNode.removeChild(el);
     }
   });
+  // Clear processed elements set
+  processedElements.clear && processedElements.clear();
 }
 
 function initObserver() {
   const observer = new MutationObserver((mutations) => {
-    if (!isEnabled) return;
+    if (currentMode === 'off') return;
+
+    const checkFn = currentMode === 'auto' ? hasKanji : hasFuriganaPattern;
     let shouldProcess = false;
+
     for (const mutation of mutations) {
       if (mutation.type === 'childList') {
         for (const node of mutation.addedNodes) {
-          if (node.nodeType === Node.ELEMENT_NODE && hasFuriganaPattern(node.textContent || '')) {
+          if (node.nodeType === Node.ELEMENT_NODE && checkFn(node.textContent || '')) {
             shouldProcess = true;
             break;
           }
@@ -244,19 +309,42 @@ function initObserver() {
 }
 
 chrome.runtime.onMessage.addListener((message) => {
+  if (message.action === 'setMode') {
+    const newMode = message.mode;
+
+    // If changing mode, revert first then process with new mode
+    if (newMode !== currentMode) {
+      revertFurigana();
+      currentMode = newMode;
+      if (currentMode !== 'off') {
+        processPageContent();
+      }
+    }
+  }
+  // Backward compatibility
   if (message.action === 'toggleFurigana') {
-    isEnabled = message.enabled;
-    isEnabled ? processPageContent() : revertFurigana();
+    currentMode = message.enabled ? 'bracket' : 'off';
+    currentMode !== 'off' ? processPageContent() : revertFurigana();
   }
 });
 
 function init() {
   console.log('Furigana Converter: Initializing...');
-  chrome.storage.sync.get(['furiganaEnabled'], (result) => {
-    isEnabled = result.furiganaEnabled !== false;
-    if (isEnabled) processPageContent();
+  chrome.storage.sync.get(['furiganaMode', 'furiganaEnabled'], (result) => {
+    // Support new mode or fallback to old enabled flag
+    if (result.furiganaMode) {
+      currentMode = result.furiganaMode;
+    } else if (result.furiganaEnabled === false) {
+      currentMode = 'off';
+    } else {
+      currentMode = 'bracket';
+    }
+
+    if (currentMode !== 'off') {
+      processPageContent();
+    }
     initObserver();
-    console.log('Furigana Converter: Ready, enabled:', isEnabled);
+    console.log('Furigana Converter: Ready, mode:', currentMode);
   });
 }
 

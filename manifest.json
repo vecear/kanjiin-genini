@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Agent Kanji Furigana Converter",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "description": "自動將括號內的平假名轉換為漢字上方的振假名標註",
     "permissions": [
         "storage"
