@@ -1,4 +1,4 @@
-# Furigana Converter 振假名轉換器
+# Agent Kanji Furigana Converter
 
 Chrome 擴充程式，自動將括號內的平假名轉換為漢字上方的振假名（ルビ）標註。
 

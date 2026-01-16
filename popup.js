@@ -27,5 +27,5 @@ toggle.addEventListener('change', () => {
 });
 
 function updateStatus(enabled) {
-    status.textContent = enabled ? '✓ 轉換已啟用' : '✗ 轉換已關閉';
+    status.textContent = enabled ? '✓ Enabled' : '✗ Disabled';
 }
