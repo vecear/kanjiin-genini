@@ -49,26 +49,52 @@ const VOICED_KANA = {
   'は': ['ば', 'ぱ'], 'ひ': ['び', 'ぴ'], 'ふ': ['ぶ', 'ぷ'], 'へ': ['べ', 'ぺ'], 'ほ': ['ぼ', 'ぽ'],
 };
 
-// Check if kana matches (including voiced variants)
-function kanaMatches(dictKana, actualKana) {
-  if (dictKana === actualKana) return true;
-  const variants = VOICED_KANA[dictKana];
-  return variants && variants.includes(actualKana);
+// Get base kana (remove dakuten/handakuten)
+function getBaseKana(kana) {
+  for (const [base, variants] of Object.entries(VOICED_KANA)) {
+    if (variants.includes(kana)) return base;
+  }
+  return kana;
 }
 
-// Find split point by looking for the first kana of the next kanji
-function findSplitPoint(remaining, nextKana) {
-  const kanaArray = [...remaining];
-  // Search from position 1 (give current kanji at least 1 kana)
-  for (let i = 1; i < kanaArray.length; i++) {
-    if (kanaMatches(nextKana, kanaArray[i])) {
-      return i;
+// Check if a reading matches at the start of remaining furigana
+// Returns the matched length or 0 if no match
+function matchReading(remaining, reading) {
+  const remainingChars = [...remaining];
+  const readingChars = [...reading];
+
+  if (readingChars.length > remainingChars.length) return 0;
+
+  for (let i = 0; i < readingChars.length; i++) {
+    const rBase = getBaseKana(remainingChars[i]);
+    const dBase = getBaseKana(readingChars[i]);
+    if (rBase !== dBase && remainingChars[i] !== readingChars[i]) {
+      return 0;
     }
   }
-  return -1;
+  return readingChars.length;
 }
 
-// Split furigana across characters using dictionary
+// Find where the next kanji's reading starts in the remaining furigana
+// Returns { splitIndex, matchedReading } or null
+function findSplitForNextKanji(remaining, nextKanjiReadings) {
+  const remainingChars = [...remaining];
+
+  // Try each possible split point (from position 1 onward)
+  for (let splitIdx = 1; splitIdx < remainingChars.length; splitIdx++) {
+    const afterSplit = remainingChars.slice(splitIdx).join('');
+
+    // Check if any reading of the next kanji matches at this position
+    for (const reading of nextKanjiReadings) {
+      if (matchReading(afterSplit, reading) > 0) {
+        return { splitIndex: splitIdx, matchedReading: reading };
+      }
+    }
+  }
+  return null;
+}
+
+// Split furigana across characters using complete reading dictionary
 function splitFurigana(chars, furigana) {
   const charArray = [...chars];
   const result = [];
@@ -93,16 +119,16 @@ function splitFurigana(chars, furigana) {
         continue;
       }
 
-      // 2. Try dictionary-based split: find next kanji's first kana
+      // 2. Try dictionary-based split using complete readings
       const nextChar = charArray[i + 1];
-      const nextKana = typeof KANJI_READINGS !== 'undefined' ? KANJI_READINGS[nextChar] : null;
+      const nextReadings = typeof KANJI_READINGS !== 'undefined' ? KANJI_READINGS[nextChar] : null;
 
-      if (nextKana) {
-        const splitIdx = findSplitPoint(remaining, nextKana);
-        if (splitIdx > 0) {
+      if (nextReadings && Array.isArray(nextReadings)) {
+        const split = findSplitForNextKanji(remaining, nextReadings);
+        if (split) {
           const kanaArray = [...remaining];
-          result.push({ char, reading: kanaArray.slice(0, splitIdx).join('') });
-          remaining = kanaArray.slice(splitIdx).join('');
+          result.push({ char, reading: kanaArray.slice(0, split.splitIndex).join('') });
+          remaining = kanaArray.slice(split.splitIndex).join('');
           continue;
         }
       }
