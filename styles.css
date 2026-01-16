@@ -1,30 +1,45 @@
 /* Furigana (Ruby) Styling */
 ruby {
-  /* Force ruby display mode */
+  /* Force proper ruby display */
   display: ruby;
   /* Position furigana above the kanji */
   ruby-position: over;
-  /* Center the furigana text */
+  /* Center align the ruby text */
+  ruby-align: center;
+  /* Prevent line breaks within ruby */
+  white-space: nowrap;
+}
+
+/* Ruby base (the kanji) */
+ruby>rb,
+ruby> :not(rt):not(rp) {
+  display: ruby-base;
   ruby-align: center;
 }
 
+/* Ruby text (the furigana) */
 ruby rt {
-  /* Proper ruby text display */
   display: ruby-text;
   /* Smaller font size for furigana */
   font-size: 0.5em;
-  /* Slightly lighter color for better readability */
-  opacity: 0.85;
-  /* Proper text alignment */
+  /* Center the text */
   text-align: center;
+  ruby-align: center;
+  /* Slightly lighter for readability */
+  opacity: 0.85;
+  /* Remove any default margins/padding */
+  margin: 0;
+  padding: 0;
+  /* Proper line height */
+  line-height: 1;
 }
 
-/* Fallback for browsers that don't support ruby well */
+/* Fallback parentheses - hidden in supporting browsers */
 ruby rp {
   display: none;
 }
 
-/* Ruby base text */
-ruby> :not(rt):not(rp) {
-  display: ruby-base;
+/* Container for converted content */
+.furigana-converted {
+  display: inline;
 }
