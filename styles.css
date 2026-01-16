@@ -1,0 +1,30 @@
+/* Furigana (Ruby) Styling */
+ruby {
+  /* Force ruby display mode */
+  display: ruby;
+  /* Position furigana above the kanji */
+  ruby-position: over;
+  /* Center the furigana text */
+  ruby-align: center;
+}
+
+ruby rt {
+  /* Proper ruby text display */
+  display: ruby-text;
+  /* Smaller font size for furigana */
+  font-size: 0.5em;
+  /* Slightly lighter color for better readability */
+  opacity: 0.85;
+  /* Proper text alignment */
+  text-align: center;
+}
+
+/* Fallback for browsers that don't support ruby well */
+ruby rp {
+  display: none;
+}
+
+/* Ruby base text */
+ruby> :not(rt):not(rp) {
+  display: ruby-base;
+}
