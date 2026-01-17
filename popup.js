@@ -16,7 +16,7 @@ chrome.storage.sync.get(['furiganaMode', 'hotkeyKey'], (result) => {
     setMode(mode, false);
 
     // Load hotkey
-    const hotkey = result.hotkeyKey || 'Control';
+    const hotkey = result.hotkeyKey || 'disabled';
     hotkeySelect.value = hotkey;
 });
 

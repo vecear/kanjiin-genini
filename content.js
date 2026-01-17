@@ -6,7 +6,7 @@ let processedElements = new WeakSet();
 let currentMode = 'bracket'; // 'off', 'bracket', 'auto'
 let savedMode = 'bracket';   // Mode to restore after releasing hotkey
 let isHotkeyHeld = false;
-let hotkeyKey = 'Control';   // Default hotkey
+let hotkeyKey = 'disabled';  // Default hotkey (disabled)
 
 // Japanese number readings dictionary
 const NUMBER_READINGS = {
