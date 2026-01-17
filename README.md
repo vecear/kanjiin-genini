@@ -47,6 +47,12 @@ Even in Off or Bracket-only mode, **hold a hotkey** to temporarily show furigana
 
 Release the key to restore the original mode.
 
+### Multi-Language Support
+
+The extension UI supports 10 languages:
+
+English, 繁體中文, 简体中文, 日本語, 한국어, Español, Português, Français, Deutsch, Italiano
+
 ### Smart Furigana Splitting
 
 Precisely splits furigana positions:
@@ -148,6 +154,12 @@ Chrome 擴充程式，自動將括號內的平假名轉換為漢字上方的振�
 | 可選快捷鍵 | Control / Alt / Shift / Meta (⌘/⊞) |
 
 鬆開按鍵後自動恢復原本模式。
+
+### 多語言支援
+
+擴充程式介面支援 10 種語言：
+
+English, 繁體中文, 简体中文, 日本語, 한국어, Español, Português, Français, Deutsch, Italiano
 
 ### 智慧分割標註
 

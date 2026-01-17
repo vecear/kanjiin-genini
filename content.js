@@ -6,7 +6,9 @@ let processedElements = new WeakSet();
 let currentMode = 'bracket'; // 'off', 'bracket', 'auto'
 let savedMode = 'bracket';   // Mode to restore after releasing hotkey
 let isHotkeyHeld = false;
+let isToggleActive = false;  // For toggle mode
 let hotkeyKey = 'disabled';  // Default hotkey (disabled)
+let hotkeyMode = 'hold';     // 'hold' or 'toggle'
 
 // Japanese number readings dictionary
 const NUMBER_READINGS = {
@@ -320,6 +322,7 @@ chrome.runtime.onMessage.addListener((message) => {
       revertFurigana();
       currentMode = newMode;
       savedMode = newMode;
+      isToggleActive = false; // Reset toggle state
       if (currentMode !== 'off') {
         processPageContent();
       }
@@ -328,7 +331,17 @@ chrome.runtime.onMessage.addListener((message) => {
   // Handle hotkey change
   if (message.action === 'setHotkey') {
     hotkeyKey = message.hotkey;
-    console.log('Furigana Converter: Hotkey changed to', hotkeyKey);
+    if (message.hotkeyMode) {
+      hotkeyMode = message.hotkeyMode;
+    }
+    isToggleActive = false; // Reset toggle state
+    console.log('Furigana Converter: Hotkey changed to', hotkeyKey, 'mode:', hotkeyMode);
+  }
+  // Handle hotkey mode change
+  if (message.action === 'setHotkeyMode') {
+    hotkeyMode = message.hotkeyMode;
+    isToggleActive = false; // Reset toggle state
+    console.log('Furigana Converter: Hotkey mode changed to', hotkeyMode);
   }
   // Backward compatibility
   if (message.action === 'toggleFurigana') {

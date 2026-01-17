@@ -102,6 +102,51 @@
       color: rgba(255, 255, 255, 0.7);
       margin-top: 8px;
     }
+
+    .hotkey-mode-row {
+      display: flex;
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    .hotkey-mode-row.hidden {
+      display: none;
+    }
+
+    .hotkey-mode-option {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: white;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .hotkey-mode-option input {
+      accent-color: #4ade80;
+    }
+
+    .lang-section {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .lang-label {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 11px;
+    }
+
+    .lang-select {
+      flex: 1;
+      padding: 6px;
+      border-radius: 4px;
+      border: none;
+      background: rgba(255, 255, 255, 0.9);
+      font-size: 12px;
+      cursor: pointer;
+    }
   </style>
 </head>
 
@@ -135,18 +180,44 @@
   </div>
 
   <div class="hotkey-section">
-    <label class="hotkey-label">按住快捷鍵顯示自動標註</label>
+    <label class="hotkey-label" id="hotkey-label">Hotkey to show annotations</label>
     <select id="hotkey-select" class="hotkey-select">
-      <option value="disabled">關閉此功能</option>
+      <option value="disabled">Disabled</option>
       <option value="Control">Control</option>
       <option value="Alt">Alt</option>
       <option value="Shift">Shift</option>
       <option value="Meta">Meta (⌘/⊞)</option>
     </select>
-    <div class="hotkey-desc">按住此鍵時暫時顯示所有漢字的振假名</div>
+    <div class="hotkey-mode-row" id="hotkey-mode-row">
+      <label class="hotkey-mode-option">
+        <input type="radio" name="hotkeyMode" value="hold" checked>
+        <span id="hotkey-mode-hold">Hold</span>
+      </label>
+      <label class="hotkey-mode-option">
+        <input type="radio" name="hotkeyMode" value="toggle">
+        <span id="hotkey-mode-toggle">Toggle</span>
+      </label>
+    </div>
+    <div class="hotkey-desc" id="hotkey-desc">Hold this key to temporarily show furigana</div>
   </div>
 
-  <div class="status" id="status">載入中...</div>
+  <div class="status" id="status">Loading...</div>
+
+  <div class="lang-section">
+    <span class="lang-label" id="lang-label">🌐</span>
+    <select id="lang-select" class="lang-select">
+      <option value="en">English</option>
+      <option value="zh-TW">繁體中文</option>
+      <option value="zh-CN">简体中文</option>
+      <option value="ja">日本語</option>
+      <option value="ko">한국어</option>
+      <option value="es">Español</option>
+      <option value="pt">Português</option>
+      <option value="fr">Français</option>
+      <option value="de">Deutsch</option>
+      <option value="it">Italiano</option>
+    </select>
+  </div>
 
   <script src="popup.js"></script>
 </body>
