@@ -1,5 +1,106 @@
 # Agent Kanji Furigana Converter
 
+A Chrome extension that automatically converts hiragana in parentheses to ruby furigana annotations above kanji. Supports three modes: Off, Bracket-only, and Auto-annotate.
+
+![Demo](icons/icon128.png)
+
+## Features
+
+### Three Modes
+
+| Mode | Description |
+|------|-------------|
+| 🔴 Off | No conversion |
+| 🟡 Bracket-only | Convert `漢字（ひらがな）` format only |
+| 🟢 Auto-annotate | Automatically add furigana to all kanji |
+
+### Bracket-only Mode
+
+Converts this format:
+```
+先週（せんしゅう）の試験（しけん）
+```
+
+Into HTML ruby annotations, displaying kana directly above the text.
+
+#### Supported Formats
+
+| Format | Example |
+|--------|---------|
+| Full-width parentheses | `隣（となり）` |
+| Half-width parentheses | `隣(となり)` |
+| With spaces | `隣 （となり）` |
+| Spaces inside parentheses | `隣 ( となり )` |
+
+### Auto-annotate Mode
+
+Uses the complete **KANJIDIC dictionary** (13,108 kanji) to automatically add furigana to all kanji on the page, without requiring parenthesized readings in the original text.
+
+### Hold-key to Show Annotations
+
+Even in Off or Bracket-only mode, **hold a hotkey** to temporarily show furigana for all kanji.
+
+| Setting | Description |
+|---------|-------------|
+| Default | Disabled |
+| Available keys | Control / Alt / Shift / Meta (⌘/⊞) |
+
+Release the key to restore the original mode.
+
+### Smart Furigana Splitting
+
+Precisely splits furigana positions:
+
+| Input | Result |
+|-------|--------|
+| `強化（きょうか）` | 強=きょう, 化=か |
+| `漢字（かんじ）` | 漢=かん, 字=じ |
+| `教育（きょういく）` | 教=きょう, 育=いく |
+| `日本語（にほんご）` | 日=に, 本=ほん, 語=ご |
+
+**Features**:
+- Complete on'yomi and kun'yomi readings for 13,108 kanji
+- Automatic handling of voiced/semi-voiced sound changes (e.g., し↔じ, か↔が)
+- Number reading support (一二三 → いちにさん)
+
+## Installation
+
+1. Download or clone this repo
+2. Open Chrome and go to `chrome://extensions/`
+3. Enable "Developer mode" in the top right
+4. Click "Load unpacked"
+5. Select this project folder
+
+## Usage
+
+- Click the extension icon in the toolbar to select a mode
+- Default mode is **Bracket-only**
+- Settings are saved automatically
+
+## File Structure
+
+```
+├── manifest.json       # Extension configuration
+├── content.js          # Main conversion logic
+├── kanji_dict.js       # KANJIDIC dictionary (13,108 kanji)
+├── styles.css          # Ruby annotation styles
+├── popup.html          # Toggle interface
+├── popup.js            # Toggle logic
+└── icons/              # Icons
+```
+
+## Dictionary Source
+
+Kanji reading data from the [KANJIDIC](http://www.edrdg.org/wiki/index.php/KANJIDIC_Project) project, converted to JSON format via [davidluzgouveia/kanji-data](https://github.com/davidluzgouveia/kanji-data).
+
+## License
+
+MIT
+
+---
+
+# Agent Kanji Furigana Converter (中文版)
+
 Chrome 擴充程式，自動將括號內的平假名轉換為漢字上方的振假名（ルビ）標註。支援三種模式：關閉、括號標註、自動標註。
 
 ![Demo](icons/icon128.png)
