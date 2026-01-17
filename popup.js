@@ -1,6 +1,7 @@
 const modeRadios = document.querySelectorAll('input[name="mode"]');
 const modeOptions = document.querySelectorAll('.mode-option');
 const status = document.getElementById('status');
+const hotkeySelect = document.getElementById('hotkey-select');
 
 const STATUS_TEXT = {
     off: '✗ 已關閉',
@@ -8,12 +9,17 @@ const STATUS_TEXT = {
     auto: '✓ 自動標註模式'
 };
 
-// Load current mode
-chrome.storage.sync.get(['furiganaMode'], (result) => {
+// Load current mode and hotkey
+chrome.storage.sync.get(['furiganaMode', 'hotkeyKey'], (result) => {
     // Default to 'bracket' for backward compatibility
     const mode = result.furiganaMode || 'bracket';
     setMode(mode, false);
+
+    // Load hotkey
+    const hotkey = result.hotkeyKey || 'Control';
+    hotkeySelect.value = hotkey;
 });
+
 
 // Handle mode option click (clicking the container)
 modeOptions.forEach(option => {
@@ -60,3 +66,19 @@ function setMode(mode, notify) {
         });
     }
 }
+
+// Handle hotkey change
+hotkeySelect.addEventListener('change', () => {
+    const hotkey = hotkeySelect.value;
+    chrome.storage.sync.set({ hotkeyKey: hotkey }, () => {
+        // Notify content script to update hotkey
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs[0]) {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    action: 'setHotkey',
+                    hotkey: hotkey
+                });
+            }
+        });
+    });
+});

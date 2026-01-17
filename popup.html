@@ -72,6 +72,36 @@
       font-size: 16px;
       margin-right: 8px;
     }
+
+    .hotkey-section {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+
+    .hotkey-label {
+      color: white;
+      font-size: 12px;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .hotkey-select {
+      width: 100%;
+      padding: 8px;
+      border-radius: 6px;
+      border: none;
+      background: rgba(255, 255, 255, 0.9);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .hotkey-desc {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.7);
+      margin-top: 8px;
+    }
   </style>
 </head>
 
@@ -102,6 +132,17 @@
         <div class="mode-desc">使用字典自動標註</div>
       </div>
     </div>
+  </div>
+
+  <div class="hotkey-section">
+    <label class="hotkey-label">按住快捷鍵顯示自動標註</label>
+    <select id="hotkey-select" class="hotkey-select">
+      <option value="Control">Control</option>
+      <option value="Alt">Alt</option>
+      <option value="Shift">Shift</option>
+      <option value="Meta">Meta (⌘/⊞)</option>
+    </select>
+    <div class="hotkey-desc">按住此鍵時暫時顯示所有漢字的振假名</div>
   </div>
 
   <div class="status" id="status">載入中...</div>

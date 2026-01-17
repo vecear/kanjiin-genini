@@ -1,9 +1,12 @@
-// Regex to match kanji/numbers followed by furigana in parentheses
-const FURIGANA_PATTERN = /([\u4E00-\u9FAF\u30A0-\u30FF0-9０-９]+)[\s\u3000]*[（(][\s\u3000]*([\u3040-\u309F\u30A0-\u30FF]+)[\s\u3000]*[）)]/g;
+// Regex to match kanji/numbers followed by furigana in parentheses (excludes katakana)
+const FURIGANA_PATTERN = /([\u4E00-\u9FAF0-9０-９]+)[\s\u3000]*[（(][\s\u3000]*([\u3040-\u309F\u30A0-\u30FF]+)[\s\u3000]*[）)]/g;
 
 // Track processed elements
 let processedElements = new WeakSet();
 let currentMode = 'bracket'; // 'off', 'bracket', 'auto'
+let savedMode = 'bracket';   // Mode to restore after releasing hotkey
+let isHotkeyHeld = false;
+let hotkeyKey = 'Control';   // Default hotkey
 
 // Japanese number readings dictionary
 const NUMBER_READINGS = {
@@ -316,10 +319,16 @@ chrome.runtime.onMessage.addListener((message) => {
     if (newMode !== currentMode) {
       revertFurigana();
       currentMode = newMode;
+      savedMode = newMode;
       if (currentMode !== 'off') {
         processPageContent();
       }
     }
+  }
+  // Handle hotkey change
+  if (message.action === 'setHotkey') {
+    hotkeyKey = message.hotkey;
+    console.log('Furigana Converter: Hotkey changed to', hotkeyKey);
   }
   // Backward compatibility
   if (message.action === 'toggleFurigana') {
@@ -330,7 +339,7 @@ chrome.runtime.onMessage.addListener((message) => {
 
 function init() {
   console.log('Furigana Converter: Initializing...');
-  chrome.storage.sync.get(['furiganaMode', 'furiganaEnabled'], (result) => {
+  chrome.storage.sync.get(['furiganaMode', 'furiganaEnabled', 'hotkeyKey'], (result) => {
     // Support new mode or fallback to old enabled flag
     if (result.furiganaMode) {
       currentMode = result.furiganaMode;
@@ -339,15 +348,59 @@ function init() {
     } else {
       currentMode = 'bracket';
     }
+    savedMode = currentMode;
+
+    // Load hotkey setting
+    if (result.hotkeyKey) {
+      hotkeyKey = result.hotkeyKey;
+    }
 
     if (currentMode !== 'off') {
       processPageContent();
     }
     initObserver();
-    console.log('Furigana Converter: Ready, mode:', currentMode);
+    initHotkeyListener();
+    console.log('Furigana Converter: Ready, mode:', currentMode, ', hotkey:', hotkeyKey);
+  });
+}
+
+// Hotkey hold-to-show feature
+function initHotkeyListener() {
+  document.addEventListener('keydown', (e) => {
+    if (e.key === hotkeyKey && !isHotkeyHeld && currentMode !== 'auto') {
+      isHotkeyHeld = true;
+      savedMode = currentMode;
+      revertFurigana();
+      currentMode = 'auto';
+      processPageContent();
+    }
+  });
+
+  document.addEventListener('keyup', (e) => {
+    if (e.key === hotkeyKey && isHotkeyHeld) {
+      isHotkeyHeld = false;
+      revertFurigana();
+      currentMode = savedMode;
+      if (currentMode !== 'off') {
+        processPageContent();
+      }
+    }
+  });
+
+  // Handle blur (e.g., user switches tab while holding key)
+  window.addEventListener('blur', () => {
+    if (isHotkeyHeld) {
+      isHotkeyHeld = false;
+      revertFurigana();
+      currentMode = savedMode;
+      if (currentMode !== 'off') {
+        processPageContent();
+      }
+    }
   });
 }
 
 document.readyState === 'loading'
   ? document.addEventListener('DOMContentLoaded', init)
   : init();
+
