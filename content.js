@@ -1,8 +1,8 @@
 // Regex to match kanji/numbers followed by furigana in parentheses
-const FURIGANA_PATTERN = /([\u4E00-\u9FAF0-9０-９]+)[\s\u3000]*[（(][\s\u3000]*([\u3040-\u309F]+)[\s\u3000]*[）)]/g;
+const FURIGANA_PATTERN = /([\u4E00-\u9FAF\u30A0-\u30FF0-9０-９]+)[\s\u3000]*[（(][\s\u3000]*([\u3040-\u309F\u30A0-\u30FF]+)[\s\u3000]*[）)]/g;
 
 // Track processed elements
-const processedElements = new WeakSet();
+let processedElements = new WeakSet();
 let currentMode = 'bracket'; // 'off', 'bracket', 'auto'
 
 // Japanese number readings dictionary
@@ -278,8 +278,8 @@ function revertFurigana() {
       el.parentNode.removeChild(el);
     }
   });
-  // Clear processed elements set
-  processedElements.clear && processedElements.clear();
+  // Reset processed elements set (WeakSet has no clear method)
+  processedElements = new WeakSet();
 }
 
 function initObserver() {
