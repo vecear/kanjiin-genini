@@ -367,7 +367,7 @@ function init() {
 // Hotkey hold-to-show feature
 function initHotkeyListener() {
   document.addEventListener('keydown', (e) => {
-    if (e.key === hotkeyKey && !isHotkeyHeld && currentMode !== 'auto') {
+    if (hotkeyKey !== 'disabled' && e.key === hotkeyKey && !isHotkeyHeld && currentMode !== 'auto') {
       isHotkeyHeld = true;
       savedMode = currentMode;
       revertFurigana();
