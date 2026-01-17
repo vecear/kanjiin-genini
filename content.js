@@ -352,7 +352,7 @@ chrome.runtime.onMessage.addListener((message) => {
 
 function init() {
   console.log('Furigana Converter: Initializing...');
-  chrome.storage.sync.get(['furiganaMode', 'furiganaEnabled', 'hotkeyKey'], (result) => {
+  chrome.storage.sync.get(['furiganaMode', 'furiganaEnabled', 'hotkeyKey', 'hotkeyMode'], (result) => {
     // Support new mode or fallback to old enabled flag
     if (result.furiganaMode) {
       currentMode = result.furiganaMode;
@@ -363,9 +363,12 @@ function init() {
     }
     savedMode = currentMode;
 
-    // Load hotkey setting
+    // Load hotkey settings
     if (result.hotkeyKey) {
       hotkeyKey = result.hotkeyKey;
+    }
+    if (result.hotkeyMode) {
+      hotkeyMode = result.hotkeyMode;
     }
 
     if (currentMode !== 'off') {
@@ -373,36 +376,69 @@ function init() {
     }
     initObserver();
     initHotkeyListener();
-    console.log('Furigana Converter: Ready, mode:', currentMode, ', hotkey:', hotkeyKey);
+    console.log('Furigana Converter: Ready, mode:', currentMode, ', hotkey:', hotkeyKey, ', hotkeyMode:', hotkeyMode);
   });
 }
 
-// Hotkey hold-to-show feature
+// Hotkey feature (hold or toggle)
 function initHotkeyListener() {
   document.addEventListener('keydown', (e) => {
-    if (hotkeyKey !== 'disabled' && e.key === hotkeyKey && !isHotkeyHeld && currentMode !== 'auto') {
-      isHotkeyHeld = true;
-      savedMode = currentMode;
-      revertFurigana();
-      currentMode = 'auto';
-      processPageContent();
+    if (hotkeyKey === 'disabled' || e.key !== hotkeyKey) return;
+    if (currentMode === 'auto' && !isToggleActive) return; // Already in auto mode
+
+    if (hotkeyMode === 'hold') {
+      // Hold mode: show on keydown
+      if (!isHotkeyHeld) {
+        isHotkeyHeld = true;
+        savedMode = currentMode;
+        revertFurigana();
+        currentMode = 'auto';
+        processPageContent();
+      }
+    } else if (hotkeyMode === 'toggle') {
+      // Toggle mode: toggle on keydown (only once per keypress)
+      if (!isHotkeyHeld) {
+        isHotkeyHeld = true; // Prevent repeat
+        if (isToggleActive) {
+          // Turn off
+          isToggleActive = false;
+          revertFurigana();
+          currentMode = savedMode;
+          if (currentMode !== 'off') {
+            processPageContent();
+          }
+        } else {
+          // Turn on
+          isToggleActive = true;
+          savedMode = currentMode;
+          revertFurigana();
+          currentMode = 'auto';
+          processPageContent();
+        }
+      }
     }
   });
 
   document.addEventListener('keyup', (e) => {
-    if (e.key === hotkeyKey && isHotkeyHeld) {
+    if (e.key !== hotkeyKey) return;
+
+    if (hotkeyMode === 'hold' && isHotkeyHeld) {
+      // Hold mode: revert on keyup
       isHotkeyHeld = false;
       revertFurigana();
       currentMode = savedMode;
       if (currentMode !== 'off') {
         processPageContent();
       }
+    } else if (hotkeyMode === 'toggle') {
+      // Toggle mode: just reset the keydown flag
+      isHotkeyHeld = false;
     }
   });
 
   // Handle blur (e.g., user switches tab while holding key)
   window.addEventListener('blur', () => {
-    if (isHotkeyHeld) {
+    if (hotkeyMode === 'hold' && isHotkeyHeld) {
       isHotkeyHeld = false;
       revertFurigana();
       currentMode = savedMode;

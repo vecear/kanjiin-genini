@@ -36,16 +36,16 @@ Into HTML ruby annotations, displaying kana directly above the text.
 
 Uses the complete **KANJIDIC dictionary** (13,108 kanji) to automatically add furigana to all kanji on the page, without requiring parenthesized readings in the original text.
 
-### Hold-key to Show Annotations
+### Hotkey to Show Annotations
 
-Even in Off or Bracket-only mode, **hold a hotkey** to temporarily show furigana for all kanji.
+Use a hotkey to show furigana for all kanji, even in Off or Bracket-only mode.
 
 | Setting | Description |
 |---------|-------------|
 | Default | Disabled |
 | Available keys | Control / Alt / Shift / Meta (⌘/⊞) |
-
-Release the key to restore the original mode.
+| **Hold mode** | Hold the key to show, release to hide |
+| **Toggle mode** | Press once to show, press again to hide |
 
 ### Multi-Language Support
 
@@ -144,16 +144,16 @@ Chrome 擴充程式，自動將括號內的平假名轉換為漢字上方的振�
 
 使用 **KANJIDIC 完整字典**（13,108 個漢字）自動為頁面上所有漢字添加振假名，無需原文有括號標註。
 
-### 按住快捷鍵顯示標註
+### 快捷鍵顯示標註
 
-即使在關閉或括號標註模式下，**按住快捷鍵**即可暫時顯示所有漢字的振假名。
+即使在關閉或括號標註模式下，使用快捷鍵即可顯示所有漢字的振假名。
 
 | 設定 | 說明 |
 |------|------|
-| 預設快捷鍵 | `Control` |
+| 預設 | 關閉 |
 | 可選快捷鍵 | Control / Alt / Shift / Meta (⌘/⊞) |
-
-鬆開按鍵後自動恢復原本模式。
+| **按住模式** | 按住顯示，放開恢復 |
+| **切換模式** | 按一下顯示，再按一下隱藏 |
 
 ### 多語言支援
 
