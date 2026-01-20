@@ -3,6 +3,8 @@ const modeOptions = document.querySelectorAll('.mode-option');
 const status = document.getElementById('status');
 const hotkeySelect = document.getElementById('hotkey-select');
 const hotkeyModeRow = document.getElementById('hotkey-mode-row');
+const hotkeyTargetRow = document.getElementById('hotkey-target-row');
+const hotkeyTargetSelect = document.getElementById('hotkey-target-select');
 const hotkeyModeRadios = document.querySelectorAll('input[name="hotkeyMode"]');
 const langSelect = document.getElementById('lang-select');
 
@@ -20,6 +22,9 @@ const TRANSLATIONS = {
         hotkeyDisabled: 'Disabled',
         hotkeyHold: 'Hold',
         hotkeyToggle: 'Toggle',
+        hotkeyTargetLabel: 'Trigger mode',
+        hotkeyTargetBracket: 'Bracket-only',
+        hotkeyTargetAuto: 'Auto-annotate',
         hotkeyDescHold: 'Hold this key to temporarily show furigana',
         hotkeyDescToggle: 'Press to toggle furigana on/off',
         statusOff: '✗ Off',
@@ -34,10 +39,13 @@ const TRANSLATIONS = {
         modeBracketDesc: '轉換 漢字（ひらがな） 格式',
         modeAuto: '自動標註所有漢字',
         modeAutoDesc: '使用字典自動標註',
-        hotkeyLabel: '快捷鍵顯示自動標註',
+        hotkeyLabel: '快捷鍵顯示標註',
         hotkeyDisabled: '關閉此功能',
         hotkeyHold: '按住',
         hotkeyToggle: '切換',
+        hotkeyTargetLabel: '觸發模式',
+        hotkeyTargetBracket: '括號標註',
+        hotkeyTargetAuto: '自動標註',
         hotkeyDescHold: '按住此鍵時暫時顯示振假名',
         hotkeyDescToggle: '按一下切換振假名顯示',
         statusOff: '✗ 已關閉',
@@ -52,10 +60,13 @@ const TRANSLATIONS = {
         modeBracketDesc: '转换 漢字（ひらがな） 格式',
         modeAuto: '自动标注所有汉字',
         modeAutoDesc: '使用字典自动标注',
-        hotkeyLabel: '快捷键显示自动标注',
+        hotkeyLabel: '快捷键显示标注',
         hotkeyDisabled: '关闭此功能',
         hotkeyHold: '按住',
         hotkeyToggle: '切换',
+        hotkeyTargetLabel: '触发模式',
+        hotkeyTargetBracket: '括号标注',
+        hotkeyTargetAuto: '自动标注',
         hotkeyDescHold: '按住此键时暂时显示振假名',
         hotkeyDescToggle: '按一下切换振假名显示',
         statusOff: '✗ 已关闭',
@@ -74,6 +85,9 @@ const TRANSLATIONS = {
         hotkeyDisabled: '無効',
         hotkeyHold: '長押し',
         hotkeyToggle: '切替',
+        hotkeyTargetLabel: '表示モード',
+        hotkeyTargetBracket: '括弧付きのみ',
+        hotkeyTargetAuto: '自動ルビ',
         hotkeyDescHold: 'キーを押している間ルビを表示',
         hotkeyDescToggle: 'キーを押してルビ表示を切替',
         statusOff: '✗ オフ',
@@ -92,6 +106,9 @@ const TRANSLATIONS = {
         hotkeyDisabled: '비활성화',
         hotkeyHold: '누르고 있기',
         hotkeyToggle: '토글',
+        hotkeyTargetLabel: '표시 모드',
+        hotkeyTargetBracket: '괄호만',
+        hotkeyTargetAuto: '자동 표기',
         hotkeyDescHold: '키를 누르고 있으면 후리가나 표시',
         hotkeyDescToggle: '키를 눌러 후리가나 전환',
         statusOff: '✗ 끄기',
@@ -110,6 +127,9 @@ const TRANSLATIONS = {
         hotkeyDisabled: 'Desactivado',
         hotkeyHold: 'Mantener',
         hotkeyToggle: 'Alternar',
+        hotkeyTargetLabel: 'Modo a activar',
+        hotkeyTargetBracket: 'Paréntesis',
+        hotkeyTargetAuto: 'Automático',
         hotkeyDescHold: 'Mantén esta tecla para mostrar furigana',
         hotkeyDescToggle: 'Pulsa para alternar furigana',
         statusOff: '✗ Desactivado',
@@ -128,6 +148,9 @@ const TRANSLATIONS = {
         hotkeyDisabled: 'Desativado',
         hotkeyHold: 'Segurar',
         hotkeyToggle: 'Alternar',
+        hotkeyTargetLabel: 'Modo a ativar',
+        hotkeyTargetBracket: 'Parênteses',
+        hotkeyTargetAuto: 'Automático',
         hotkeyDescHold: 'Segure esta tecla para mostrar furigana',
         hotkeyDescToggle: 'Pressione para alternar furigana',
         statusOff: '✗ Desligado',
@@ -146,6 +169,9 @@ const TRANSLATIONS = {
         hotkeyDisabled: 'Désactivé',
         hotkeyHold: 'Maintenir',
         hotkeyToggle: 'Basculer',
+        hotkeyTargetLabel: 'Mode à activer',
+        hotkeyTargetBracket: 'Parenthèses',
+        hotkeyTargetAuto: 'Automatique',
         hotkeyDescHold: 'Maintenez cette touche pour afficher furigana',
         hotkeyDescToggle: 'Appuyez pour basculer furigana',
         statusOff: '✗ Désactivé',
@@ -164,6 +190,9 @@ const TRANSLATIONS = {
         hotkeyDisabled: 'Deaktiviert',
         hotkeyHold: 'Halten',
         hotkeyToggle: 'Umschalten',
+        hotkeyTargetLabel: 'Aktivierter Modus',
+        hotkeyTargetBracket: 'Klammern',
+        hotkeyTargetAuto: 'Automatisch',
         hotkeyDescHold: 'Halten Sie diese Taste für Furigana',
         hotkeyDescToggle: 'Drücken zum Umschalten',
         statusOff: '✗ Aus',
@@ -182,6 +211,9 @@ const TRANSLATIONS = {
         hotkeyDisabled: 'Disattivato',
         hotkeyHold: 'Tieni premuto',
         hotkeyToggle: 'Alterna',
+        hotkeyTargetLabel: 'Modalità da attivare',
+        hotkeyTargetBracket: 'Parentesi',
+        hotkeyTargetAuto: 'Automatica',
         hotkeyDescHold: 'Tieni premuto per mostrare furigana',
         hotkeyDescToggle: 'Premi per alternare furigana',
         statusOff: '✗ Spento',
@@ -193,6 +225,26 @@ const TRANSLATIONS = {
 let currentLang = 'en';
 let currentMode = 'bracket';
 let currentHotkeyMode = 'hold';
+let currentHotkeyTarget = 'auto'; // 'bracket' or 'auto'
+
+// Safe message sender that ignores errors when content script is not loaded
+async function sendMessageToTab(message) {
+    try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0] && tabs[0].id) {
+            // Check if the tab URL is one where content scripts can run
+            const url = tabs[0].url || '';
+            if (url.startsWith('chrome://') || url.startsWith('chrome-extension://') ||
+                url.startsWith('edge://') || url.startsWith('about:') || !url) {
+                // Content script cannot run on these pages
+                return;
+            }
+            await chrome.tabs.sendMessage(tabs[0].id, message);
+        }
+    } catch (e) {
+        // Silently ignore - content script not loaded on this page
+    }
+}
 
 function t(key) {
     return TRANSLATIONS[currentLang]?.[key] || TRANSLATIONS['en'][key] || key;
@@ -215,6 +267,9 @@ function updateUI() {
     hotkeySelect.options[0].textContent = t('hotkeyDisabled');
     document.getElementById('hotkey-mode-hold').textContent = t('hotkeyHold');
     document.getElementById('hotkey-mode-toggle').textContent = t('hotkeyToggle');
+    document.getElementById('hotkey-target-label').textContent = t('hotkeyTargetLabel');
+    hotkeyTargetSelect.options[0].textContent = t('hotkeyTargetBracket');
+    hotkeyTargetSelect.options[1].textContent = t('hotkeyTargetAuto');
     updateHotkeyDesc();
 
     // Update status
@@ -229,8 +284,10 @@ function updateHotkeyDesc() {
 function updateHotkeyModeVisibility() {
     if (hotkeySelect.value === 'disabled') {
         hotkeyModeRow.classList.add('hidden');
+        hotkeyTargetRow.classList.add('hidden');
     } else {
         hotkeyModeRow.classList.remove('hidden');
+        hotkeyTargetRow.classList.remove('hidden');
     }
 }
 
@@ -244,14 +301,16 @@ function updateStatus() {
 }
 
 // Load saved settings
-chrome.storage.sync.get(['furiganaMode', 'hotkeyKey', 'hotkeyMode', 'language'], (result) => {
+chrome.storage.sync.get(['furiganaMode', 'hotkeyKey', 'hotkeyMode', 'hotkeyTarget', 'language'], (result) => {
     currentMode = result.furiganaMode || 'bracket';
     currentLang = result.language || 'en';
     currentHotkeyMode = result.hotkeyMode || 'hold';
+    currentHotkeyTarget = result.hotkeyTarget || 'auto';
     const hotkey = result.hotkeyKey || 'disabled';
 
     setMode(currentMode, false);
     hotkeySelect.value = hotkey;
+    hotkeyTargetSelect.value = currentHotkeyTarget;
     langSelect.value = currentLang;
 
     // Set hotkey mode radio
@@ -296,14 +355,7 @@ function setMode(mode, notify) {
 
     if (notify) {
         chrome.storage.sync.set({ furiganaMode: mode }, () => {
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                if (tabs[0]) {
-                    chrome.tabs.sendMessage(tabs[0].id, {
-                        action: 'setMode',
-                        mode: mode
-                    });
-                }
-            });
+            sendMessageToTab({ action: 'setMode', mode: mode });
         });
     }
 }
@@ -313,14 +365,10 @@ hotkeySelect.addEventListener('change', () => {
     const hotkey = hotkeySelect.value;
     updateHotkeyModeVisibility();
     chrome.storage.sync.set({ hotkeyKey: hotkey }, () => {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs[0]) {
-                chrome.tabs.sendMessage(tabs[0].id, {
-                    action: 'setHotkey',
-                    hotkey: hotkey,
-                    hotkeyMode: currentHotkeyMode
-                });
-            }
+        sendMessageToTab({
+            action: 'setHotkey',
+            hotkey: hotkey,
+            hotkeyMode: currentHotkeyMode
         });
     });
 });
@@ -332,16 +380,23 @@ hotkeyModeRadios.forEach(radio => {
             currentHotkeyMode = radio.value;
             updateHotkeyDesc();
             chrome.storage.sync.set({ hotkeyMode: currentHotkeyMode }, () => {
-                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                    if (tabs[0]) {
-                        chrome.tabs.sendMessage(tabs[0].id, {
-                            action: 'setHotkeyMode',
-                            hotkeyMode: currentHotkeyMode
-                        });
-                    }
+                sendMessageToTab({
+                    action: 'setHotkeyMode',
+                    hotkeyMode: currentHotkeyMode
                 });
             });
         }
+    });
+});
+
+// Handle hotkey target change
+hotkeyTargetSelect.addEventListener('change', () => {
+    currentHotkeyTarget = hotkeyTargetSelect.value;
+    chrome.storage.sync.set({ hotkeyTarget: currentHotkeyTarget }, () => {
+        sendMessageToTab({
+            action: 'setHotkeyTarget',
+            hotkeyTarget: currentHotkeyTarget
+        });
     });
 });
 

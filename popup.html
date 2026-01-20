@@ -109,7 +109,8 @@
       margin-top: 8px;
     }
 
-    .hotkey-mode-row.hidden {
+    .hotkey-mode-row.hidden,
+    .hotkey-target-row.hidden {
       display: none;
     }
 
@@ -197,6 +198,13 @@
         <input type="radio" name="hotkeyMode" value="toggle">
         <span id="hotkey-mode-toggle">Toggle</span>
       </label>
+    </div>
+    <div class="hotkey-target-row" id="hotkey-target-row">
+      <label class="hotkey-label" id="hotkey-target-label" style="margin-top: 8px; margin-bottom: 4px;">Trigger mode</label>
+      <select id="hotkey-target-select" class="hotkey-select">
+        <option value="bracket">Bracket-only</option>
+        <option value="auto">Auto-annotate</option>
+      </select>
     </div>
     <div class="hotkey-desc" id="hotkey-desc">Hold this key to temporarily show furigana</div>
   </div>

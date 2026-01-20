@@ -1,6 +1,10 @@
 // Regex to match kanji/numbers followed by furigana in parentheses (excludes katakana)
 const FURIGANA_PATTERN = /([\u4E00-\u9FAF0-9０-９]+)[\s\u3000]*[（(][\s\u3000]*([\u3040-\u309F\u30A0-\u30FF]+)[\s\u3000]*[）)]/g;
 
+// Regex to match kanji+kana mixed words followed by furigana in parentheses
+// e.g., 受ける（うける）, 食べる（たべる）, 読み方（よみかた）
+const MIXED_FURIGANA_PATTERN = /([\u4E00-\u9FAF][\u4E00-\u9FAF\u3040-\u309F\u30A0-\u30FF]*)[\s\u3000]*[（(][\s\u3000]*([\u3040-\u309F\u30A0-\u30FF]+)[\s\u3000]*[）)]/g;
+
 // Track processed elements
 let processedElements = new WeakSet();
 let currentMode = 'bracket'; // 'off', 'bracket', 'auto'
@@ -9,6 +13,7 @@ let isHotkeyHeld = false;
 let isToggleActive = false;  // For toggle mode
 let hotkeyKey = 'disabled';  // Default hotkey (disabled)
 let hotkeyMode = 'hold';     // 'hold' or 'toggle'
+let hotkeyTarget = 'auto';   // 'bracket' or 'auto' - which mode to trigger with hotkey
 
 // Japanese number readings dictionary
 const NUMBER_READINGS = {
@@ -99,6 +104,189 @@ function findSplitForNextKanji(remaining, nextKanjiReadings) {
   return null;
 }
 
+// Check if character is a kanji
+function isKanji(char) {
+  const code = char.charCodeAt(0);
+  return code >= 0x4E00 && code <= 0x9FAF;
+}
+
+// Check if character is hiragana
+function isHiragana(char) {
+  const code = char.charCodeAt(0);
+  return code >= 0x3040 && code <= 0x309F;
+}
+
+// Check if character is katakana
+function isKatakana(char) {
+  const code = char.charCodeAt(0);
+  return code >= 0x30A0 && code <= 0x30FF;
+}
+
+// Convert katakana to hiragana for comparison
+function katakanaToHiragana(str) {
+  return [...str].map(char => {
+    const code = char.charCodeAt(0);
+    if (code >= 0x30A0 && code <= 0x30FF) {
+      return String.fromCharCode(code - 0x60);
+    }
+    return char;
+  }).join('');
+}
+
+// Process mixed kanji+kana word with furigana
+// e.g., 受ける（うける）-> <ruby>受<rt>う</rt></ruby>ける
+// e.g., 受け付ける（うけつける）-> <ruby>受<rt>う</rt></ruby>け<ruby>付<rt>つ</rt></ruby>ける
+function convertMixedToRuby(word, furigana) {
+  const chars = [...word];
+  const furiganaChars = [...katakanaToHiragana(furigana)];
+
+  // Step 1: Find all kana sequences in the word and their positions
+  // This creates "anchors" that we can use to align with furigana
+  const segments = []; // { type: 'kanji'|'kana', start, end, text }
+  let segStart = 0;
+
+  for (let i = 0; i <= chars.length; i++) {
+    const isEnd = i === chars.length;
+    const currIsKana = !isEnd && (isHiragana(chars[i]) || isKatakana(chars[i]));
+    const prevIsKana = i > 0 && (isHiragana(chars[i - 1]) || isKatakana(chars[i - 1]));
+
+    if (isEnd || (currIsKana !== prevIsKana && i > 0)) {
+      if (i > segStart) {
+        const text = chars.slice(segStart, i).join('');
+        segments.push({
+          type: prevIsKana ? 'kana' : 'kanji',
+          start: segStart,
+          end: i,
+          text: text,
+          hiragana: katakanaToHiragana(text)
+        });
+      }
+      segStart = i;
+    }
+  }
+
+  // Step 2: Find where each kana segment appears in the furigana
+  // Use these as anchors to determine kanji readings
+  let furiganaPos = 0;
+  const segmentReadings = [];
+
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+
+    if (seg.type === 'kana') {
+      // Find this kana sequence in the furigana starting from current position
+      const kanaHira = seg.hiragana;
+      let foundPos = -1;
+
+      // Search for the kana sequence in furigana
+      for (let searchPos = furiganaPos; searchPos <= furiganaChars.length - kanaHira.length; searchPos++) {
+        const candidate = furiganaChars.slice(searchPos, searchPos + kanaHira.length).join('');
+        if (matchKanaSequence(candidate, kanaHira)) {
+          foundPos = searchPos;
+          break;
+        }
+      }
+
+      if (foundPos !== -1) {
+        // The kanji segment before this gets the reading from furiganaPos to foundPos
+        if (i > 0 && segments[i - 1].type === 'kanji') {
+          segmentReadings[i - 1] = furiganaChars.slice(furiganaPos, foundPos).join('');
+        }
+        segmentReadings[i] = null; // Kana doesn't need reading
+        furiganaPos = foundPos + kanaHira.length;
+      } else {
+        // Couldn't find kana - this shouldn't happen with valid input
+        segmentReadings[i] = null;
+      }
+    } else {
+      // Kanji segment - reading will be determined by next kana anchor
+      // For now, mark as pending
+      segmentReadings[i] = 'pending';
+    }
+  }
+
+  // Step 3: Handle any remaining kanji at the end (no kana anchor after it)
+  for (let i = 0; i < segments.length; i++) {
+    if (segmentReadings[i] === 'pending') {
+      // This kanji segment has no kana after it
+      // Give it all remaining furigana, or split with next kanji using dictionary
+      const remainingFurigana = furiganaChars.slice(furiganaPos).join('');
+
+      // Check if there are more kanji segments after this
+      let nextKanjiIdx = -1;
+      for (let j = i + 1; j < segments.length; j++) {
+        if (segments[j].type === 'kanji') {
+          nextKanjiIdx = j;
+          break;
+        }
+      }
+
+      if (nextKanjiIdx === -1) {
+        // This is the last kanji segment - it gets all remaining furigana
+        segmentReadings[i] = remainingFurigana;
+        furiganaPos = furiganaChars.length;
+      } else {
+        // There's another kanji after - need to split
+        // For now, use dictionary-based splitting for the kanji characters
+        segmentReadings[i] = remainingFurigana; // Will be split later
+      }
+    }
+  }
+
+  // Step 4: Build the result
+  let result = '';
+
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+
+    if (seg.type === 'kana') {
+      // Output kana as-is
+      result += seg.text;
+    } else {
+      // Kanji segment - need to add ruby
+      const reading = segmentReadings[i] || '';
+      const kanjiChars = [...seg.text];
+
+      if (kanjiChars.length === 1) {
+        // Single kanji
+        result += `<ruby>${kanjiChars[0]}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`;
+      } else {
+        // Multiple kanji - split the reading using dictionary
+        const pairs = splitFurigana(seg.text, reading);
+        result += pairs.map(({ char, reading: r }) =>
+          `<ruby>${char}<rp>(</rp><rt>${r}</rt><rp>)</rp></ruby>`
+        ).join('');
+      }
+    }
+  }
+
+  return result;
+}
+
+// Check if furigana sequence matches word kana sequence (with tolerance for voicing)
+function matchKanaSequence(furigana, wordKana) {
+  if (wordKana.length > furigana.length) return false;
+  for (let i = 0; i < wordKana.length; i++) {
+    const f = furigana[i];
+    const w = wordKana[i];
+    if (f !== w && getBaseKana(f) !== getBaseKana(w)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Check if word contains mixed kanji and kana (not pure kanji)
+function isMixedWord(word) {
+  let hasKanji = false;
+  let hasKana = false;
+  for (const char of word) {
+    if (isKanji(char)) hasKanji = true;
+    if (isHiragana(char) || isKatakana(char)) hasKana = true;
+  }
+  return hasKanji && hasKana;
+}
+
 // Split furigana across characters using complete reading dictionary
 function splitFurigana(chars, furigana) {
   const charArray = [...chars];
@@ -151,12 +339,26 @@ function splitFurigana(chars, furigana) {
 
 
 function convertToRuby(text) {
-  return text.replace(FURIGANA_PATTERN, (match, chars, furigana) => {
+  // First, process mixed kanji+kana words (e.g., 受ける（うける）)
+  // This must come first to avoid partial matches by FURIGANA_PATTERN
+  let result = text.replace(MIXED_FURIGANA_PATTERN, (match, word, furigana) => {
+    // Only use mixed processing if the word actually contains both kanji and kana
+    if (isMixedWord(word)) {
+      return convertMixedToRuby(word, furigana);
+    }
+    // If it's pure kanji, let FURIGANA_PATTERN handle it
+    return match;
+  });
+
+  // Then, process pure kanji words (e.g., 漢字（かんじ）)
+  result = result.replace(FURIGANA_PATTERN, (match, chars, furigana) => {
     const pairs = splitFurigana(chars, furigana);
     return pairs.map(({ char, reading }) =>
       `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`
     ).join('');
   });
+
+  return result;
 }
 
 // Kanji Unicode range regex
@@ -195,7 +397,8 @@ function hasKanji(text) {
 
 function hasFuriganaPattern(text) {
   FURIGANA_PATTERN.lastIndex = 0;
-  return FURIGANA_PATTERN.test(text);
+  MIXED_FURIGANA_PATTERN.lastIndex = 0;
+  return FURIGANA_PATTERN.test(text) || MIXED_FURIGANA_PATTERN.test(text);
 }
 
 // Process text node for bracket mode
@@ -234,8 +437,9 @@ function processTextNodeAuto(textNode) {
   }
 }
 
-function walkTextNodes(element, mode) {
-  if (processedElements.has(element)) return;
+function walkTextNodes(element, mode, forceReprocess = false) {
+  // Skip if already processed, unless force reprocess is set
+  if (!forceReprocess && processedElements.has(element)) return;
 
   const skipTags = ['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'RUBY', 'RT', 'RP'];
   if (skipTags.includes(element.tagName)) return;
@@ -292,25 +496,58 @@ function initObserver() {
     if (currentMode === 'off') return;
 
     const checkFn = currentMode === 'auto' ? hasKanji : hasFuriganaPattern;
-    let shouldProcess = false;
+    const nodesToProcess = new Set();
 
     for (const mutation of mutations) {
+      // Handle added nodes (both elements and text nodes)
       if (mutation.type === 'childList') {
         for (const node of mutation.addedNodes) {
-          if (node.nodeType === Node.ELEMENT_NODE && checkFn(node.textContent || '')) {
-            shouldProcess = true;
-            break;
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            // Skip if it's our own converted element
+            if (node.classList && node.classList.contains('furigana-converted')) continue;
+            if (checkFn(node.textContent || '')) {
+              nodesToProcess.add(node);
+            }
+          } else if (node.nodeType === Node.TEXT_NODE) {
+            // Text node added - process its parent
+            if (node.parentElement && checkFn(node.textContent || '')) {
+              if (!node.parentElement.classList.contains('furigana-converted')) {
+                nodesToProcess.add(node.parentElement);
+              }
+            }
           }
         }
       }
-      if (shouldProcess) break;
+      // Handle text content changes (characterData)
+      if (mutation.type === 'characterData') {
+        const target = mutation.target;
+        if (target.parentElement && checkFn(target.textContent || '')) {
+          if (!target.parentElement.classList.contains('furigana-converted')) {
+            nodesToProcess.add(target.parentElement);
+          }
+        }
+      }
     }
-    if (shouldProcess) {
+
+    if (nodesToProcess.size > 0) {
       clearTimeout(window._furiganaTimeout);
-      window._furiganaTimeout = setTimeout(processPageContent, 100);
+      window._furiganaTimeout = setTimeout(() => {
+        // Force reprocess these elements even if they were processed before
+        nodesToProcess.forEach(el => {
+          if (el && el.nodeType === Node.ELEMENT_NODE) {
+            walkTextNodes(el, currentMode, true); // forceReprocess = true
+          }
+        });
+      }, 100);
     }
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+
+  // Observe childList, subtree, AND characterData for text changes
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true
+  });
 }
 
 chrome.runtime.onMessage.addListener((message) => {
@@ -343,6 +580,12 @@ chrome.runtime.onMessage.addListener((message) => {
     isToggleActive = false; // Reset toggle state
     console.log('Furigana Converter: Hotkey mode changed to', hotkeyMode);
   }
+  // Handle hotkey target change
+  if (message.action === 'setHotkeyTarget') {
+    hotkeyTarget = message.hotkeyTarget;
+    isToggleActive = false; // Reset toggle state
+    console.log('Furigana Converter: Hotkey target changed to', hotkeyTarget);
+  }
   // Backward compatibility
   if (message.action === 'toggleFurigana') {
     currentMode = message.enabled ? 'bracket' : 'off';
@@ -352,7 +595,7 @@ chrome.runtime.onMessage.addListener((message) => {
 
 function init() {
   console.log('Furigana Converter: Initializing...');
-  chrome.storage.sync.get(['furiganaMode', 'furiganaEnabled', 'hotkeyKey', 'hotkeyMode'], (result) => {
+  chrome.storage.sync.get(['furiganaMode', 'furiganaEnabled', 'hotkeyKey', 'hotkeyMode', 'hotkeyTarget'], (result) => {
     // Support new mode or fallback to old enabled flag
     if (result.furiganaMode) {
       currentMode = result.furiganaMode;
@@ -370,13 +613,16 @@ function init() {
     if (result.hotkeyMode) {
       hotkeyMode = result.hotkeyMode;
     }
+    if (result.hotkeyTarget) {
+      hotkeyTarget = result.hotkeyTarget;
+    }
 
     if (currentMode !== 'off') {
       processPageContent();
     }
     initObserver();
     initHotkeyListener();
-    console.log('Furigana Converter: Ready, mode:', currentMode, ', hotkey:', hotkeyKey, ', hotkeyMode:', hotkeyMode);
+    console.log('Furigana Converter: Ready, mode:', currentMode, ', hotkey:', hotkeyKey, ', hotkeyMode:', hotkeyMode, ', hotkeyTarget:', hotkeyTarget);
   });
 }
 
@@ -384,7 +630,8 @@ function init() {
 function initHotkeyListener() {
   document.addEventListener('keydown', (e) => {
     if (hotkeyKey === 'disabled' || e.key !== hotkeyKey) return;
-    if (currentMode === 'auto' && !isToggleActive) return; // Already in auto mode
+    // Skip if already in the target mode (and not toggled)
+    if (currentMode === hotkeyTarget && !isToggleActive) return;
 
     if (hotkeyMode === 'hold') {
       // Hold mode: show on keydown
@@ -392,7 +639,7 @@ function initHotkeyListener() {
         isHotkeyHeld = true;
         savedMode = currentMode;
         revertFurigana();
-        currentMode = 'auto';
+        currentMode = hotkeyTarget; // Use configured target mode
         processPageContent();
       }
     } else if (hotkeyMode === 'toggle') {
@@ -412,7 +659,7 @@ function initHotkeyListener() {
           isToggleActive = true;
           savedMode = currentMode;
           revertFurigana();
-          currentMode = 'auto';
+          currentMode = hotkeyTarget; // Use configured target mode
           processPageContent();
         }
       }
