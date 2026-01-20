@@ -291,6 +291,15 @@ function updateHotkeyModeVisibility() {
     }
 }
 
+function updateHotkeySectionVisibility() {
+    const hotkeySection = document.querySelector('.hotkey-section');
+    if (currentMode === 'off') {
+        hotkeySection.style.display = '';
+    } else {
+        hotkeySection.style.display = 'none';
+    }
+}
+
 function updateStatus() {
     const statusMap = {
         off: t('statusOff'),
@@ -318,6 +327,7 @@ chrome.storage.sync.get(['furiganaMode', 'hotkeyKey', 'hotkeyMode', 'hotkeyTarge
     if (hotkeyModeRadio) hotkeyModeRadio.checked = true;
 
     updateHotkeyModeVisibility();
+    updateHotkeySectionVisibility();
     updateUI();
 });
 
@@ -352,6 +362,9 @@ function setMode(mode, notify) {
 
     // Update status
     updateStatus();
+
+    // Update hotkey section visibility
+    updateHotkeySectionVisibility();
 
     if (notify) {
         chrome.storage.sync.set({ furiganaMode: mode }, () => {

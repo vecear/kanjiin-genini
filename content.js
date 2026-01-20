@@ -627,11 +627,12 @@ function init() {
 }
 
 // Hotkey feature (hold or toggle)
+// Only works when main mode is 'off'
 function initHotkeyListener() {
   document.addEventListener('keydown', (e) => {
     if (hotkeyKey === 'disabled' || e.key !== hotkeyKey) return;
-    // Skip if already in the target mode (and not toggled)
-    if (currentMode === hotkeyTarget && !isToggleActive) return;
+    // Hotkey only works when main mode is 'off'
+    if (savedMode !== 'off' && !isHotkeyHeld && !isToggleActive) return;
 
     if (hotkeyMode === 'hold') {
       // Hold mode: show on keydown
