@@ -63,31 +63,34 @@ def conjugate_verb(word, furigana_list):
     # 1. Ichidan (and some Godan) - stems ending in -i/-e
     if last_char == "る":
         # Ichidan: Drop る
-        # ます, た, て, ない, られる, させる, よう
-        for s in ["ます", "ました", "ません", "た", "て", "ない", "られる", "させる", "よう"]:
+        # ます, た, て, ない, られる, させる, よう, ている, ています, ていた, ていました
+        for s in ["ます", "ました", "ません", "た", "て", "ない", "られる", "させる", "よう", "ている", "ています", "ていた", "ていました"]:
             add_conj(s)
 
     # 2. Godan endings
     godan_rules = {
-        "う": {"masu": "い", "te": "った", "ta": "った", "nai": "わ"},
-        "く": {"masu": "き", "te": "いて", "ta": "いた", "nai": "か"},
-        "ぐ": {"masu": "ぎ", "te": "いで", "ta": "いだ", "nai": "が"},
-        "す": {"masu": "し", "te": "して", "ta": "した", "nai": "さ"},
-        "つ": {"masu": "ち", "te": "った", "ta": "った", "nai": "た"},
-        "ぬ": {"masu": "に", "te": "んで", "ta": "んだ", "nai": "な"},
-        "む": {"masu": "み", "te": "んで", "ta": "んだ", "nai": "ま"},
-        "ぶ": {"masu": "び", "te": "んで", "ta": "んだ", "nai": "ば"},
-        "る": {"masu": "り", "te": "った", "ta": "った", "nai": "ら"},
+        "う": {"masu": "い", "te": "った", "ta": "った", "nai": "わ", "t": "って"},
+        "く": {"masu": "き", "te": "いて", "ta": "いた", "nai": "か", "t": "いて"},
+        "ぐ": {"masu": "ぎ", "te": "いで", "ta": "いだ", "nai": "が", "t": "いで"},
+        "す": {"masu": "し", "te": "して", "ta": "した", "nai": "さ", "t": "して"},
+        "つ": {"masu": "ち", "te": "った", "ta": "った", "nai": "た", "t": "って"},
+        "ぬ": {"masu": "に", "te": "んで", "ta": "んだ", "nai": "な", "t": "んで"},
+        "む": {"masu": "み", "te": "んで", "ta": "んだ", "nai": "ま", "t": "んで"},
+        "ぶ": {"masu": "び", "te": "んで", "ta": "んだ", "nai": "ば", "t": "んで"},
+        "る": {"masu": "り", "te": "った", "ta": "った", "nai": "ら", "t": "って"},
     }
 
     if last_char in godan_rules:
         r = godan_rules[last_char]
-        # ます
-        add_conj(r["masu"] + "ます")
-        add_conj(r["masu"] + "ました")
-        # た/て
+        # ます forms
+        for s in ["ます", "ました", "ません"]:
+            add_conj(r["masu"] + s)
+        # た/て forms
         add_conj(r["te"])
         add_conj(r["ta"])
+        # ている/ています forms
+        for s in ["いる", "います", "いた", "いました"]:
+            add_conj(r["t"] + s)
         # ない
         add_conj(r["nai"] + "ない")
 
@@ -139,10 +142,77 @@ def build():
     conj_readings = {}
 
     print("Generating conjugations...")
-    # Limit to most common words to keep file size reasonable
-    # For this task, we'll process a subset or focused list if large
+    # Manual add: Force-include common verbs to ensure coverage
+    manual_adds = [
+        {"text": "思う", "furigana": [{"ruby": "思", "rt": "おも"}, {"ruby": "う"}]},
+        {"text": "行く", "furigana": [{"ruby": "行", "rt": "い"}, {"ruby": "く"}]},
+        {"text": "見る", "furigana": [{"ruby": "見", "rt": "み"}, {"ruby": "る"}]},
+        {"text": "言う", "furigana": [{"ruby": "言", "rt": "い"}, {"ruby": "う"}]},
+        {"text": "出る", "furigana": [{"ruby": "出", "rt": "で"}, {"ruby": "る"}]},
+        {"text": "作る", "furigana": [{"ruby": "作", "rt": "つく"}, {"ruby": "る"}]},
+        {"text": "使う", "furigana": [{"ruby": "使", "rt": "つか"}, {"ruby": "う"}]},
+        {"text": "入る", "furigana": [{"ruby": "入", "rt": "はい"}, {"ruby": "る"}]},
+        {"text": "着る", "furigana": [{"ruby": "着", "rt": "き"}, {"ruby": "る"}]},
+        {"text": "笑う", "furigana": [{"ruby": "笑", "rt": "わら"}, {"ruby": "う"}]},
+        {"text": "食べる", "furigana": [{"ruby": "食", "rt": "た"}, {"ruby": "べる"}]},
+        {"text": "寝る", "furigana": [{"ruby": "寝", "rt": "ね"}, {"ruby": "る"}]},
+        {"text": "知る", "furigana": [{"ruby": "知", "rt": "し"}, {"ruby": "る"}]},
+        {"text": "考える", "furigana": [{"ruby": "考", "rt": "かんが"}, {"ruby": "える"}]},
+        {"text": "待つ", "furigana": [{"ruby": "待", "rt": "ま"}, {"ruby": "つ"}]},
+        {"text": "聞く", "furigana": [{"ruby": "聞", "rt": "き"}, {"ruby": "く"}]},
+        {"text": "話す", "furigana": [{"ruby": "話", "rt": "はな"}, {"ruby": "す"}]},
+        {"text": "買える", "furigana": [{"ruby": "買", "rt": "か"}, {"ruby": "える"}]},
+        {"text": "帰る", "furigana": [{"ruby": "帰", "rt": "かえ"}, {"ruby": "る"}]},
+        {"text": "会う", "furigana": [{"ruby": "会", "rt": "あ"}, {"ruby": "う"}]},
+        {"text": "やる", "furigana": [{"ruby": "や"}, {"ruby": "る"}]},
+        {"text": "送る", "furigana": [{"ruby": "送", "rt": "おく"}, {"ruby": "る"}]},
+        {"text": "死ぬ", "furigana": [{"ruby": "死", "rt": "し"}, {"ruby": "ぬ"}]},
+        {"text": "飛ぶ", "furigana": [{"ruby": "飛", "rt": "と"}, {"ruby": "ぶ"}]},
+        {"text": "飲む", "furigana": [{"ruby": "飲", "rt": "の"}, {"ruby": "む"}]},
+        {"text": "持つ", "furigana": [{"ruby": "持", "rt": "も"}, {"ruby": "つ"}]},
+        {"text": "立つ", "furigana": [{"ruby": "立", "rt": "た"}, {"ruby": "つ"}]},
+        {"text": "呼ぶ", "furigana": [{"ruby": "呼", "rt": "よ"}, {"ruby": "ぶ"}]},
+        {"text": "起きる", "furigana": [{"ruby": "起", "rt": "お"}, {"ruby": "きる"}]},
+        {"text": "乗る", "furigana": [{"ruby": "乗", "rt": "の"}, {"ruby": "る"}]},
+        {"text": "始まる", "furigana": [{"ruby": "始", "rt": "はじ"}, {"ruby": "まる"}]},
+        {"text": "覚える", "furigana": [{"ruby": "覚", "rt": "おぼ"}, {"ruby": "える"}]},
+        {"text": "教える", "furigana": [{"ruby": "教", "rt": "おし"}, {"ruby": "える"}]},
+        {"text": "歩く", "furigana": [{"ruby": "歩", "rt": "ある"}, {"ruby": "く"}]},
+        {"text": "走る", "furigana": [{"ruby": "走", "rt": "はし"}, {"ruby": "る"}]},
+        {"text": "座る", "furigana": [{"ruby": "座", "rt": "すわ"}, {"ruby": "る"}]},
+        {"text": "売る", "furigana": [{"ruby": "売", "rt": "う"}, {"ruby": "る"}]},
+        {"text": "続く", "furigana": [{"ruby": "続", "rt": "つづ"}, {"ruby": "く"}]},
+        {"text": "決める", "furigana": [{"ruby": "決", "rt": "き"}, {"ruby": "める"}]},
+        {"text": "止める", "furigana": [{"ruby": "止", "rt": "と"}, {"ruby": "める"}]},
+        {"text": "変わる", "furigana": [{"ruby": "変", "rt": "か"}, {"ruby": "わる"}]},
+        {"text": "違う", "furigana": [{"ruby": "違", "rt": "ちが"}, {"ruby": "う"}]},
+        {"text": "動く", "furigana": [{"ruby": "動", "rt": "うご"}, {"ruby": "く"}]},
+        {"text": "楽しむ", "furigana": [{"ruby": "楽", "rt": "たの"}, {"ruby": "しむ"}]},
+        {"text": "感じる", "furigana": [{"ruby": "感", "rt": "かん"}, {"ruby": "じる"}]},
+        {"text": "直す", "furigana": [{"ruby": "直", "rt": "なお"}, {"ruby": "す"}]},
+        {"text": "触る", "furigana": [{"ruby": "触", "rt": "さわ"}, {"ruby": "る"}]},
+        {"text": "喜ぶ", "furigana": [{"ruby": "喜", "rt": "よろこ"}, {"ruby": "ぶ"}]},
+        {"text": "戻る", "furigana": [{"ruby": "戻", "rt": "もど"}, {"ruby": "る"}]},
+        {"text": "泳ぐ", "furigana": [{"ruby": "泳", "rt": "およ"}, {"ruby": "ぐ"}]},
+        {"text": "歌う", "furigana": [{"ruby": "歌", "rt": "うた"}, {"ruby": "う"}]},
+        {"text": "買う", "furigana": [{"ruby": "買", "rt": "か"}, {"ruby": "う"}]},
+        {"text": "来る", "furigana": [{"ruby": "来", "rt": "く"}, {"ruby": "る"}]},
+        {"text": "書く", "furigana": [{"ruby": "書", "rt": "か"}, {"ruby": "く"}]},
+        {"text": "読む", "furigana": [{"ruby": "読", "rt": "よ"}, {"ruby": "む"}]},
+        {"text": "遊ぶ", "furigana": [{"ruby": "遊", "rt": "あそ"}, {"ruby": "ぶ"}]},
+        {"text": "通う", "furigana": [{"ruby": "通", "rt": "かよ"}, {"ruby": "う"}]},
+        {"text": "選ぶ", "furigana": [{"ruby": "選", "rt": "えら"}, {"ruby": "ぶ"}]},
+        {"text": "困る", "furigana": [{"ruby": "困", "rt": "こま"}, {"ruby": "る"}]},
+        {"text": "落ちる", "furigana": [{"ruby": "落", "rt": "お"}, {"ruby": "ちる"}]},
+        {"text": "消える", "furigana": [{"ruby": "消", "rt": "き"}, {"ruby": "える"}]},
+        {"text": "決まる", "furigana": [{"ruby": "決", "rt": "き"}, {"ruby": "まる"}]},
+        {"text": "泊まる", "furigana": [{"ruby": "泊", "rt": "と"}, {"ruby": "まる"}]},
+        {"text": "借りる", "furigana": [{"ruby": "借", "rt": "か"}, {"ruby": "りる"}]},
+        {"text": "貸す", "furigana": [{"ruby": "貸", "rt": "か"}, {"ruby": "す"}]},
+        {"text": "頼む", "furigana": [{"ruby": "頼", "rt": "たの"}, {"ruby": "む"}]}
+    ]
     count = 0
-    for entry in data:
+    for entry in manual_adds + data:
         text = entry["text"]
         # Basics: must contain kanji and end in verb/adj kana
         if not any(0x4E00 <= ord(c) <= 0x9FAF for c in text):

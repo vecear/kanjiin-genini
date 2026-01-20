@@ -104,6 +104,18 @@ function findSplitForNextKanji(remaining, nextKanjiReadings) {
   return null;
 }
 
+// Helper to wrap text in ruby only if necessary
+function wrapInRuby(text, reading) {
+  if (!reading) return text;
+
+  // Normalize both to Hiragana for comparison to catch Katakana/Hiragana matches
+  const normText = katakanaToHiragana(text.trim());
+  const normReading = katakanaToHiragana(reading.trim());
+
+  if (normReading === normText) return text;
+  return `<ruby>${text}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`;
+}
+
 // Check if character is a kanji
 function isKanji(char) {
   const code = char.charCodeAt(0);
@@ -137,130 +149,8 @@ function katakanaToHiragana(str) {
 // e.g., 受ける（うける）-> <ruby>受<rt>う</rt></ruby>ける
 // e.g., 受け付ける（うけつける）-> <ruby>受<rt>う</rt></ruby>け<ruby>付<rt>つ</rt></ruby>ける
 function convertMixedToRuby(word, furigana) {
-  const chars = [...word];
-  const furiganaChars = [...katakanaToHiragana(furigana)];
-
-  // Step 1: Find all kana sequences in the word and their positions
-  // This creates "anchors" that we can use to align with furigana
-  const segments = []; // { type: 'kanji'|'kana', start, end, text }
-  let segStart = 0;
-
-  for (let i = 0; i <= chars.length; i++) {
-    const isEnd = i === chars.length;
-    const currIsKana = !isEnd && (isHiragana(chars[i]) || isKatakana(chars[i]));
-    const prevIsKana = i > 0 && (isHiragana(chars[i - 1]) || isKatakana(chars[i - 1]));
-
-    if (isEnd || (currIsKana !== prevIsKana && i > 0)) {
-      if (i > segStart) {
-        const text = chars.slice(segStart, i).join('');
-        segments.push({
-          type: prevIsKana ? 'kana' : 'kanji',
-          start: segStart,
-          end: i,
-          text: text,
-          hiragana: katakanaToHiragana(text)
-        });
-      }
-      segStart = i;
-    }
-  }
-
-  // Step 2: Find where each kana segment appears in the furigana
-  // Use these as anchors to determine kanji readings
-  let furiganaPos = 0;
-  const segmentReadings = [];
-
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i];
-
-    if (seg.type === 'kana') {
-      // Find this kana sequence in the furigana starting from current position
-      const kanaHira = seg.hiragana;
-      let foundPos = -1;
-
-      // Search for the kana sequence in furigana
-      for (let searchPos = furiganaPos; searchPos <= furiganaChars.length - kanaHira.length; searchPos++) {
-        const candidate = furiganaChars.slice(searchPos, searchPos + kanaHira.length).join('');
-        if (matchKanaSequence(candidate, kanaHira)) {
-          foundPos = searchPos;
-          break;
-        }
-      }
-
-      if (foundPos !== -1) {
-        // The kanji segment before this gets the reading from furiganaPos to foundPos
-        if (i > 0 && segments[i - 1].type === 'kanji') {
-          segmentReadings[i - 1] = furiganaChars.slice(furiganaPos, foundPos).join('');
-        }
-        segmentReadings[i] = null; // Kana doesn't need reading
-        furiganaPos = foundPos + kanaHira.length;
-      } else {
-        // Couldn't find kana - this shouldn't happen with valid input
-        segmentReadings[i] = null;
-      }
-    } else {
-      // Kanji segment - reading will be determined by next kana anchor
-      // For now, mark as pending
-      segmentReadings[i] = 'pending';
-    }
-  }
-
-  // Step 3: Handle any remaining kanji at the end (no kana anchor after it)
-  for (let i = 0; i < segments.length; i++) {
-    if (segmentReadings[i] === 'pending') {
-      // This kanji segment has no kana after it
-      // Give it all remaining furigana, or split with next kanji using dictionary
-      const remainingFurigana = furiganaChars.slice(furiganaPos).join('');
-
-      // Check if there are more kanji segments after this
-      let nextKanjiIdx = -1;
-      for (let j = i + 1; j < segments.length; j++) {
-        if (segments[j].type === 'kanji') {
-          nextKanjiIdx = j;
-          break;
-        }
-      }
-
-      if (nextKanjiIdx === -1) {
-        // This is the last kanji segment - it gets all remaining furigana
-        segmentReadings[i] = remainingFurigana;
-        furiganaPos = furiganaChars.length;
-      } else {
-        // There's another kanji after - need to split
-        // For now, use dictionary-based splitting for the kanji characters
-        segmentReadings[i] = remainingFurigana; // Will be split later
-      }
-    }
-  }
-
-  // Step 4: Build the result
-  let result = '';
-
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i];
-
-    if (seg.type === 'kana') {
-      // Output kana as-is
-      result += seg.text;
-    } else {
-      // Kanji segment - need to add ruby
-      const reading = segmentReadings[i] || '';
-      const kanjiChars = [...seg.text];
-
-      if (kanjiChars.length === 1) {
-        // Single kanji
-        result += `<ruby>${kanjiChars[0]}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`;
-      } else {
-        // Multiple kanji - split the reading using dictionary
-        const pairs = splitFurigana(seg.text, reading);
-        result += pairs.map(({ char, reading: r }) =>
-          `<ruby>${char}<rp>(</rp><rt>${r}</rt><rp>)</rp></ruby>`
-        ).join('');
-      }
-    }
-  }
-
-  return result;
+  const pairs = splitFurigana(word, furigana);
+  return pairs.map(({ char, reading }) => wrapInRuby(char, reading)).join('');
 }
 
 // Check if furigana sequence matches word kana sequence (with tolerance for voicing)
@@ -388,6 +278,12 @@ function getDictionaryHash(nameList) {
     }
     hash.get(firstChar).push(word);
   }
+
+  // Sort candidates by length descending to prioritize longer matches
+  for (const [key, candidates] of hash) {
+    candidates.sort((a, b) => b.length - a.length);
+  }
+
   dictionaryHashes.set(nameList, hash);
   return hash;
 }
@@ -400,29 +296,37 @@ function getDictionaryHash(nameList) {
 function generateRubyWithSpaces(textChars, startIndex, matchLen, readingPairs) {
   let result = '';
   let tIdx = startIndex;
-  let pIdx = 0;
   const endIdx = startIndex + matchLen;
   const spaceRegex = /[\s\u3000\u00A0\u200B-\u200D\uFEFF]/;
 
-  while (tIdx < endIdx) {
-    const char = textChars[tIdx];
+  for (const pair of readingPairs) {
+    const charBlock = pair[0];
+    const reading = pair[1];
 
-    // Output spaces as-is
-    if (spaceRegex.test(char)) {
-      result += char;
+    let charsMatchedInBlock = 0;
+    const blockTextChars = [...charBlock];
+    let collectedText = '';
+
+    while (charsMatchedInBlock < blockTextChars.length && tIdx < endIdx) {
+      const tChar = textChars[tIdx];
+
+      if (spaceRegex.test(tChar)) {
+        result += tChar;
+        tIdx++;
+        continue;
+      }
+
+      collectedText += tChar;
+      charsMatchedInBlock++;
       tIdx++;
-      continue;
     }
 
-    // Output ruby for matched character
-    if (pIdx < readingPairs.length) {
-      const pair = readingPairs[pIdx];
-      const reading = pair[1];
-      result += `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`;
-      pIdx++;
-    } else {
-      result += char;
-    }
+    result += wrapInRuby(collectedText, reading);
+  }
+
+  // Add any remaining spaces/characters in the match range (e.g. trailing match whitespace)
+  while (tIdx < endIdx) {
+    result += textChars[tIdx];
     tIdx++;
   }
 
@@ -444,9 +348,7 @@ function convertToRuby(text) {
   // Then, process pure kanji words (e.g., 漢字（かんじ）)
   result = result.replace(FURIGANA_PATTERN, (match, chars, furigana) => {
     const pairs = splitFurigana(chars, furigana);
-    return pairs.map(({ char, reading }) =>
-      `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`
-    ).join('');
+    return pairs.map(({ char, reading }) => wrapInRuby(char, reading)).join('');
   });
 
   return result;
@@ -498,42 +400,40 @@ function autoAnnotateText(text) {
     if (KANJI_ONLY_PATTERN.test(char)) {
       let matched = false;
 
-      // 1. Try Standard Dictionaries (Place, Name, Common, Core)
+      // Universal Longest Match Priority
+      let bestMatch = null;
+
+      // 1. Evaluate Standard Dictionaries (Place, Name, Common, Core, Conjugated)
       for (const dict of dictionaries) {
         if (!dict.names || dict.names.length === 0) continue;
 
-        // Optimized lookup using first-character hash
         const hash = getDictionaryHash(dict.names);
         const candidates = hash.get(char) || [];
 
         for (const word of candidates) {
+          // Optimization: Since candidates are sorted by length descending,
+          // the first match for this dictionary is the longest.
+          // If we already have a better (or equal length but higher priority) match, skip checking this dictionary.
+          if (bestMatch && bestMatch.sourceLength >= word.length) {
+            break;
+          }
+
           const matchLen = matchNameWithSpaces(chars, i, word);
-
           if (matchLen > 0) {
-            const pairs = dict.readings[word];
-
-            if (Array.isArray(pairs) && Array.isArray(pairs[0])) {
-              result += generateRubyWithSpaces(chars, i, matchLen, pairs);
-            } else if (typeof pairs === 'string') {
-              const pairArray = splitFurigana(word, pairs).map(p => [p.char, p.reading]);
-              result += generateRubyWithSpaces(chars, i, matchLen, pairArray);
-            } else {
-              result += generateRubyWithSpaces(chars, i, matchLen, pairs);
-            }
-
-            i += matchLen;
-            matched = true;
+            bestMatch = {
+              type: 'standard',
+              matchLen: matchLen,
+              sourceLength: word.length,
+              word: word,
+              readings: dict.readings[word]
+            };
             break;
           }
         }
-        if (matched) break;
       }
 
-      // 2. Try Combinatorial Name Matching (Surname + Given Name)
-      if (!matched &&
-        typeof SURNAME_NAMES_SORTED !== 'undefined' &&
-        typeof GIVEN_NAMES_SORTED !== 'undefined') {
-
+      // 2. Evaluate Combinatorial Name Matching (Surname + Given Name)
+      if (typeof SURNAME_NAMES_SORTED !== 'undefined' && typeof GIVEN_NAMES_SORTED !== 'undefined') {
         const surnameHash = getDictionaryHash(SURNAME_NAMES_SORTED);
         const surnameCandidates = surnameHash.get(char) || [];
 
@@ -555,30 +455,62 @@ function autoAnnotateText(text) {
               for (const given of givenCandidates) {
                 const givenLen = matchNameWithSpaces(chars, nextCharIdx, given);
                 if (givenLen > 0) {
-                  const surnamePairs = SURNAME_READINGS[surname];
-                  const givenPairs = GIVEN_NAME_READINGS[given];
+                  const totalSourceLen = surname.length + given.length;
+                  const totalMatchLen = surnameLen + spaceOffset + givenLen;
 
-                  result += generateRubyWithSpaces(chars, i, surnameLen, surnamePairs);
-                  result += chars.slice(i + surnameLen, i + surnameLen + spaceOffset).join('');
-                  result += generateRubyWithSpaces(chars, nextCharIdx, givenLen, givenPairs);
-
-                  i += surnameLen + spaceOffset + givenLen;
-                  matched = true;
+                  // Update bestMatch if this combinatorial name is longer
+                  if (!bestMatch || totalSourceLen > bestMatch.sourceLength) {
+                    bestMatch = {
+                      type: 'combinatorial',
+                      matchLen: totalMatchLen,
+                      sourceLength: totalSourceLen,
+                      surname: surname,
+                      surnameLen: surnameLen,
+                      spaceOffset: spaceOffset,
+                      given: given,
+                      givenLen: givenLen,
+                      surnamePairs: SURNAME_READINGS[surname],
+                      givenPairs: GIVEN_NAME_READINGS[given]
+                    };
+                  }
+                  // Longest match for this surname
                   break;
                 }
               }
             }
           }
-          if (matched) break;
         }
+      }
+
+      // Apply the best match found
+      if (bestMatch) {
+        if (bestMatch.type === 'standard') {
+          const pairs = bestMatch.readings;
+          if (Array.isArray(pairs) && Array.isArray(pairs[0])) {
+            result += generateRubyWithSpaces(chars, i, bestMatch.matchLen, pairs);
+          } else if (typeof pairs === 'string') {
+            const pairArray = splitFurigana(bestMatch.word, pairs).map(p => [p.char, p.reading]);
+            result += generateRubyWithSpaces(chars, i, bestMatch.matchLen, pairArray);
+          } else {
+            // bestMatch.readings could be an object if it came from something unexpected
+            const pairArray = Array.isArray(pairs) ? pairs : [[bestMatch.word, pairs]];
+            result += generateRubyWithSpaces(chars, i, bestMatch.matchLen, pairArray);
+          }
+          i += bestMatch.matchLen;
+        } else if (bestMatch.type === 'combinatorial') {
+          result += generateRubyWithSpaces(chars, i, bestMatch.surnameLen, bestMatch.surnamePairs);
+          result += chars.slice(i + bestMatch.surnameLen, i + bestMatch.surnameLen + bestMatch.spaceOffset).join('');
+          result += generateRubyWithSpaces(chars, i + bestMatch.surnameLen + bestMatch.spaceOffset, bestMatch.givenLen, bestMatch.givenPairs);
+          i += bestMatch.matchLen;
+        }
+        matched = true;
       }
 
       // 3. Fallback: Single Kanji
       if (!matched) {
         const readings = typeof KANJI_READINGS !== 'undefined' ? KANJI_READINGS[char] : null;
         if (readings && readings.length > 0) {
-          const reading = readings[0];
-          result += `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`;
+          result += wrapInRuby(char, readings[0]);
         } else {
           result += char;
         }
