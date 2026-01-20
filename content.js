@@ -397,6 +397,24 @@ function autoAnnotateText(text) {
         }
       }
 
+      // Try to match person names (newly added)
+      if (!matched && typeof NAME_NAMES_SORTED !== 'undefined' && typeof NAME_READINGS !== 'undefined') {
+        const remainingText = chars.slice(i).join('');
+
+        for (const name of NAME_NAMES_SORTED) {
+          if (remainingText.startsWith(name)) {
+            const pairs = NAME_READINGS[name];
+            // Format is [[ruby, rt], ...]
+            result += pairs.map(([char, reading]) =>
+              `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`
+            ).join('');
+            i += [...name].length;
+            matched = true;
+            break;
+          }
+        }
+      }
+
       // Try to match common words next
       if (!matched && typeof COMMON_NAMES_SORTED !== 'undefined' && typeof COMMON_READINGS !== 'undefined') {
         const remainingText = chars.slice(i).join('');

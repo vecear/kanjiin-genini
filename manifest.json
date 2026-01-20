@@ -25,6 +25,7 @@
             "js": [
                 "kanji_dict.js",
                 "place_dict.js",
+                "name_dict.js",
                 "core_dict.js",
                 "common_dict.js",
                 "content.js"
