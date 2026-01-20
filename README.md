@@ -9,15 +9,29 @@ A Chrome extension that automatically converts hiragana in parentheses to ruby f
 ### Three Modes
 
 | Mode | Description |
-|------|-------------|
+| :--- | :--- |
 | **Off** | No conversion - use hotkey to temporarily show annotations |
 | **Bracket-only** | Convert `漢字（ひらがな）` format only |
 | **Auto-annotate** | Automatically add furigana to all kanji |
 
+### Layered Dictionary Priority (Auto Mode)
+
+The extension uses a multi-layered dictionary priority system to ensure the most accurate readings are used first:
+
+1. **Place Names** (`place_dict.js`): Comprehensive list of Japanese prefectures, cities, and landmarks with special readings (jukujikun).
+2. **Common Compounds** (`common_dict.js`): Curated list of high-priority words and irregular readings (e.g., 今日, 台風, weather terms).
+3. **Core Vocabulary** (`core_dict.js`): **5,500+ JLPT N1-N5 words** sourced from JMdict with pre-split character-level alignment.
+4. **Single Kanji** (`kanji_dict.js`): Fallback dictionary containing 13,108 kanji for words not found in higher-priority lists.
+
+### Precise Furigana Alignment
+
+The extension ensures that furigana is perfectly aligned with individual kanji characters, even for complex compounds. For core vocabulary, the readings are pre-split to guarantee 100% accuracy without runtime overhead.
+
 ### Bracket-only Mode
 
 Converts this format:
-```
+
+```text
 先週（せんしゅう）の試験（しけん）
 ```
 
@@ -26,23 +40,19 @@ Into HTML ruby annotations, displaying kana directly above the text.
 #### Supported Formats
 
 | Format | Example |
-|--------|---------|
+| :--- | :--- |
 | Full-width parentheses | `隣（となり）` |
 | Half-width parentheses | `隣(となり)` |
 | With spaces | `隣 （となり）` |
 | Spaces inside parentheses | `隣 ( となり )` |
 | Mixed kanji+kana words | `受ける（うける）` → 受=う + ける |
 
-### Auto-annotate Mode
-
-Uses the complete **KANJIDIC dictionary** (13,108 kanji) to automatically add furigana to all kanji on the page, without requiring parenthesized readings in the original text.
-
 ### Hotkey to Show Annotations
 
 > **Note**: The hotkey feature is only available when the main mode is set to **Off**. This allows you to keep the page clean by default and temporarily show annotations when needed.
 
 | Setting | Description |
-|---------|-------------|
+| :--- | :--- |
 | Default | Disabled |
 | Available keys | Control / Alt / Shift / Meta (⌘/⊞) |
 | **Hold mode** | Hold the key to show annotations, release to hide |
@@ -70,6 +80,7 @@ Precisely splits furigana positions:
 | `受け付ける（うけつける）` | 受=う, け, 付=つ, ける |
 
 **Features**:
+
 - Complete on'yomi and kun'yomi readings for 13,108 kanji
 - Automatic handling of voiced/semi-voiced sound changes (e.g., し↔じ, か↔が)
 - Number reading support (一二三 → いちにさん)
@@ -95,19 +106,24 @@ Precisely splits furigana positions:
 
 ## File Structure
 
-```
+```text
 ├── manifest.json       # Extension configuration
 ├── content.js          # Main conversion logic
-├── kanji_dict.js       # KANJIDIC dictionary (13,108 kanji)
+├── place_dict.js       # Place names dictionary
+├── common_dict.js      # Common words and priority overrides
+├── core_dict.js        # Core JLPT N1-N5 vocabulary (5,500+ words)
+├── kanji_dict.js       # KANJIDIC fallback dictionary (13,108 kanji)
 ├── styles.css          # Ruby annotation styles
 ├── popup.html          # Settings interface
 ├── popup.js            # Settings logic
 └── icons/              # Icons
 ```
 
-## Dictionary Source
+## Dictionary Sources
 
-Kanji reading data from the [KANJIDIC](http://www.edrdg.org/wiki/index.php/KANJIDIC_Project) project, converted to JSON format via [davidluzgouveia/kanji-data](https://github.com/davidluzgouveia/kanji-data).
+- **KANJIDIC**: Primary kanji reading data.
+- **JLPT Vocabulary**: [tentoumushii/yomitan-jlpt-vocab-json](https://github.com/tentoumushii/yomitan-jlpt-vocab-json).
+- **JMdict Furigana**: [Doublevil/JmdictFurigana](https://github.com/Doublevil/JmdictFurigana) for precise alignment.
 
 ## License
 
@@ -126,15 +142,29 @@ Chrome 擴充程式，自動將括號內的平假名轉換為漢字上方的振�
 ### 三種模式
 
 | 模式 | 說明 |
-|------|------|
+| :--- | :--- |
 | **關閉** | 不做任何轉換，可使用快捷鍵臨時顯示標註 |
 | **括號標註** | 只轉換 `漢字（ひらがな）` 格式 |
 | **自動標註** | 自動為所有漢字添加振假名 |
 
+### 多層級字典優先級 (自動模式)
+
+本擴充程式使用多層級字典系統，確保最精確的讀法優先顯示：
+
+1. **地名標註** (`place_dict.js`)：完整的日本都道府縣、城市和名勝，包含熟字訓讀法。
+2. **常用詞彙** (`common_dict.js`)：收錄高頻率詞彙與特殊讀音（如：今日、台風、天氣相關術語）。
+3. **核心字典** (`core_dict.js`)：**5,500+ 個 JLPT N1-N5 詞彙**，源自 JMdict 並經過精確的字符級對齊處理。
+4. **單字字典** (`kanji_dict.js`)：包含 13,108 個漢字的備用字典，用於處理未出現在高優先級清單中的漢字。
+
+### 精確的振假名對齊
+
+本程式確保振假名能精確地與每個漢字對齊，即使是複雜的複合詞。對於核心字典，讀音已預先完成分割，確保 100% 的準確性，且不影響執行速度。
+
 ### 括號標註模式
 
 將這種格式：
-```
+
+```text
 先週（せんしゅう）の試験（しけん）
 ```
 
@@ -143,23 +173,19 @@ Chrome 擴充程式，自動將括號內的平假名轉換為漢字上方的振�
 #### 支援格式
 
 | 格式 | 範例 |
-|------|------|
+| :--- | :--- |
 | 全形括號 | `隣（となり）` |
 | 半形括號 | `隣(となり)` |
 | 含空格 | `隣 （となり）` |
 | 括號內空格 | `隣 ( となり )` |
 | 漢字假名混合詞 | `受ける（うける）` → 受=う + ける |
 
-### 自動標註模式
-
-使用 **KANJIDIC 完整字典**（13,108 個漢字）自動為頁面上所有漢字添加振假名，無需原文有括號標註。
-
 ### 快捷鍵顯示標註
 
 > **注意**：快捷鍵功能只在主模式設為「**關閉**」時才會出現。這讓你可以保持頁面乾淨，只在需要時臨時顯示標註。
 
 | 設定 | 說明 |
-|------|------|
+| :--- | :--- |
 | 預設 | 關閉此功能 |
 | 可選快捷鍵 | Control / Alt / Shift / Meta (⌘/⊞) |
 | **按住模式** | 按住顯示標註，放開隱藏 |
@@ -179,7 +205,7 @@ English, 繁體中文, 简体中文, 日本語, 한국어, Español, Português,
 精確分割 furigana 位置：
 
 | 輸入 | 分割結果 |
-|------|---------|
+|-------|---------|
 | `強化（きょうか）` | 強=きょう, 化=か |
 | `漢字（かんじ）` | 漢=かん, 字=じ |
 | `教育（きょういく）` | 教=きょう, 育=いく |
@@ -187,6 +213,7 @@ English, 繁體中文, 简体中文, 日本語, 한국어, Español, Português,
 | `受け付ける（うけつける）` | 受=う, け, 付=つ, ける |
 
 **特色**：
+
 - 13,108 個漢字的完整音讀 (on'yomi) 和訓讀 (kun'yomi)
 - 自動處理濁音/半濁音變化（如 し↔じ, か↔が）
 - 數字讀音支援（一二三 → いちにさん）
@@ -212,10 +239,13 @@ English, 繁體中文, 简体中文, 日本語, 한국어, Español, Português,
 
 ## 檔案結構
 
-```
+```text
 ├── manifest.json       # 擴充程式設定
 ├── content.js          # 主要轉換邏輯
-├── kanji_dict.js       # KANJIDIC 字典 (13,108 漢字)
+├── place_dict.js       # 地名語法字典
+├── common_dict.js      # 常用詞與優先權設定
+├── core_dict.js        # 核心 JLPT N1-N5 詞彙 (5,500+ 詞)
+├── kanji_dict.js       # KANJIDIC 備用字典 (13,108 漢字)
 ├── styles.css          # Ruby 標註樣式
 ├── popup.html          # 設定介面
 ├── popup.js            # 設定邏輯
@@ -224,7 +254,9 @@ English, 繁體中文, 简体中文, 日本語, 한국어, Español, Português,
 
 ## 字典來源
 
-漢字讀音資料來自 [KANJIDIC](http://www.edrdg.org/wiki/index.php/KANJIDIC_Project) 專案，經由 [davidluzgouveia/kanji-data](https://github.com/davidluzgouveia/kanji-data) 轉換為 JSON 格式。
+- **KANJIDIC**: 主要漢字讀音資料。
+- **JLPT Vocabulary**: [tentoumushii/yomitan-jlpt-vocab-json](https://github.com/tentoumushii/yomitan-jlpt-vocab-json).
+- **JMdict Furigana**: [Doublevil/JmdictFurigana](https://github.com/Doublevil/JmdictFurigana) 以實現精確分割。
 
 ## License
 
