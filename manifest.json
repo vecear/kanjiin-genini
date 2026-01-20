@@ -28,6 +28,7 @@
                 "name_dict.js",
                 "core_dict.js",
                 "common_dict.js",
+                "conjugated_dict.js",
                 "content.js"
             ],
             "css": [

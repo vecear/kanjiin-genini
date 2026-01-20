@@ -339,12 +339,12 @@ function splitFurigana(chars, furigana) {
 
 
 // Helper to check if text matches a name, skipping spaces
-// Returns matched length (number of characters in text) or 0
-function matchNameWithSpaces(textChars, name) {
+// Returns matched length in 'textChars' (number of characters consumed) or 0
+function matchNameWithSpaces(textChars, startIndex, name) {
   const nameChars = [...name];
-  let tIdx = 0; // index in textChars
+  let tIdx = startIndex; // current index in textChars
   let nIdx = 0; // index in nameChars
-  const spaceRegex = /[\s\u3000\u00A0\u200B-\u200D\uFEFF]/; // Include ZWSP, ZWNJ, ZWJ, BOM
+  const spaceRegex = /[\s\u3000\u00A0\u200B-\u200D\uFEFF]/;
 
   while (nIdx < nameChars.length && tIdx < textChars.length) {
     const tChar = textChars[tIdx];
@@ -366,23 +366,45 @@ function matchNameWithSpaces(textChars, name) {
 
   // Must match full name
   if (nIdx === nameChars.length) {
-    return tIdx;
+    return tIdx - startIndex;
   }
 
   return 0;
 }
 
+// Global cache for dictionary hashes
+const dictionaryHashes = new Map();
+
+function getDictionaryHash(nameList) {
+  if (dictionaryHashes.has(nameList)) {
+    return dictionaryHashes.get(nameList);
+  }
+
+  const hash = new Map();
+  for (const word of nameList) {
+    const firstChar = word[0];
+    if (!hash.has(firstChar)) {
+      hash.set(firstChar, []);
+    }
+    hash.get(firstChar).push(word);
+  }
+  dictionaryHashes.set(nameList, hash);
+  return hash;
+}
+
 // Helper to generate ruby with spaces preserved
-// originalText: the text segment from the page (including spaces)
+// textChars: the array of characters from the page
+// startIndex: where the match starts
+// matchLen: how many characters from textChars were consumed
 // readingPairs: array of [char, reading] from dictionary
-function generateRubyWithSpaces(originalText, readingPairs) {
+function generateRubyWithSpaces(textChars, startIndex, matchLen, readingPairs) {
   let result = '';
-  let tIdx = 0;
+  let tIdx = startIndex;
   let pIdx = 0;
-  const textChars = [...originalText];
+  const endIdx = startIndex + matchLen;
   const spaceRegex = /[\s\u3000\u00A0\u200B-\u200D\uFEFF]/;
 
-  while (tIdx < textChars.length) {
+  while (tIdx < endIdx) {
     const char = textChars[tIdx];
 
     // Output spaces as-is
@@ -395,13 +417,10 @@ function generateRubyWithSpaces(originalText, readingPairs) {
     // Output ruby for matched character
     if (pIdx < readingPairs.length) {
       const pair = readingPairs[pIdx];
-      // pair is [char, reading]
-      // We assume text matches dictionary at this point (verified by matchNameWithSpaces)
       const reading = pair[1];
       result += `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`;
       pIdx++;
     } else {
-      // Should not happen if matched correctly, but fallback
       result += char;
     }
     tIdx++;
@@ -444,7 +463,6 @@ function autoAnnotateText(text) {
   const chars = [...text];
 
   // Dictionaries ordered by priority
-  // Each entry: { names: SORTED_KEYS, readings: READING_MAP, type: 'standard'|'combinatorial' }
   const dictionaries = [
     {
       names: (typeof PLACE_NAMES_SORTED !== 'undefined') ? PLACE_NAMES_SORTED : [],
@@ -465,6 +483,11 @@ function autoAnnotateText(text) {
       names: (typeof CORE_NAMES_SORTED !== 'undefined') ? CORE_NAMES_SORTED : [],
       readings: (typeof CORE_READINGS !== 'undefined') ? CORE_READINGS : {},
       type: 'standard'
+    },
+    {
+      names: (typeof CONJUGATED_NAMES_SORTED !== 'undefined') ? CONJUGATED_NAMES_SORTED : [],
+      readings: (typeof CONJUGATED_READINGS !== 'undefined') ? CONJUGATED_READINGS : {},
+      type: 'standard'
     }
   ];
 
@@ -474,54 +497,28 @@ function autoAnnotateText(text) {
     // Check if it's a kanji
     if (KANJI_ONLY_PATTERN.test(char)) {
       let matched = false;
-      const remainingChars = chars.slice(i);
 
       // 1. Try Standard Dictionaries (Place, Name, Common, Core)
       for (const dict of dictionaries) {
         if (!dict.names || dict.names.length === 0) continue;
 
-        // Optimization: Check first char to skip iterating huge lists unnecessarily
-        // (Not easily possible with space skipping, but we can assume match must start with current char)
+        // Optimized lookup using first-character hash
+        const hash = getDictionaryHash(dict.names);
+        const candidates = hash.get(char) || [];
 
-        for (const word of dict.names) {
-          // Use smart matcher for ALL dictionary lookups
-          const matchLen = matchNameWithSpaces(remainingChars, word);
+        for (const word of candidates) {
+          const matchLen = matchNameWithSpaces(chars, i, word);
 
           if (matchLen > 0) {
             const pairs = dict.readings[word];
-            const originalSegment = remainingChars.slice(0, matchLen).join('');
 
-            // Handle different reading formats if necessary
-            // Name dict uses specific pairs format, others might use full string or pre-split
             if (Array.isArray(pairs) && Array.isArray(pairs[0])) {
-              // Already [[char, reading], ...]
-              result += generateRubyWithSpaces(originalSegment, pairs);
+              result += generateRubyWithSpaces(chars, i, matchLen, pairs);
+            } else if (typeof pairs === 'string') {
+              const pairArray = splitFurigana(word, pairs).map(p => [p.char, p.reading]);
+              result += generateRubyWithSpaces(chars, i, matchLen, pairArray);
             } else {
-              // Standard dictionary might just give full reading string or pre-split objects
-              // Assuming build scripts normalized this, but let's be safe.
-              // Existing logic assumes 'splitFurigana' needed for some.
-              // Let's assume standard dicts (Place, Common, Core) need splitting
-              // Wait, Name dict is [[char, reading], ...]. 
-              // Place/Common/Core are usually just "reading" string in this codebase's variable naming?
-              // Let's check:
-              // Place: splitFurigana(placeName, fullReading)
-              // Common: splitFurigana(word, fullReading)
-              // Core: pairs = CORE_READINGS[word] -> map
-
-              // To unify, we need to adapt on the fly:
-              if (typeof pairs === 'string') {
-                // Needs splitting
-                const splitPairs = splitFurigana(word, pairs); // splitFurigana expects CLEAN word
-                // But we have spaced text. generateRubyWithSpaces needs [char, reading] aligned to CLEAN word characters.
-                // Yes, splitFurigana(word, pairs) returns [{char, reading}, ...]
-                // We need to convert that to [[char, reading]] format for our helper
-                const pairArray = splitPairs.map(p => [p.char, p.reading]);
-                result += generateRubyWithSpaces(originalSegment, pairArray);
-              } else {
-                // Already pairs (Core dict, Name dict)
-                // Core dict in this codebase: "pairs" is [[ruby, rt], ...]
-                result += generateRubyWithSpaces(originalSegment, pairs);
-              }
+              result += generateRubyWithSpaces(chars, i, matchLen, pairs);
             }
 
             i += matchLen;
@@ -537,48 +534,38 @@ function autoAnnotateText(text) {
         typeof SURNAME_NAMES_SORTED !== 'undefined' &&
         typeof GIVEN_NAMES_SORTED !== 'undefined') {
 
-        for (const surname of SURNAME_NAMES_SORTED) {
-          const surnameLen = matchNameWithSpaces(remainingChars, surname);
+        const surnameHash = getDictionaryHash(SURNAME_NAMES_SORTED);
+        const surnameCandidates = surnameHash.get(char) || [];
+
+        for (const surname of surnameCandidates) {
+          const surnameLen = matchNameWithSpaces(chars, i, surname);
           if (surnameLen > 0) {
-            // Found valid surname, check for given name after it
-            // We need to account for potential space between surname and given name
-            // matchNameWithSpaces already consumes inner spaces, but what about separation?
-            // The helper loops through text.
-
-            const afterSurnameChars = remainingChars.slice(surnameLen);
             let spaceOffset = 0;
-
-            // Skip spaces between surname and given name
             const spaceRegex = /[\s\u3000\u00A0\u200B-\u200D\uFEFF]/;
-            while (spaceOffset < afterSurnameChars.length && spaceRegex.test(afterSurnameChars[spaceOffset])) {
+            while (i + surnameLen + spaceOffset < chars.length && spaceRegex.test(chars[i + surnameLen + spaceOffset])) {
               spaceOffset++;
             }
 
-            const afterSpaceChars = afterSurnameChars.slice(spaceOffset);
+            const nextCharIdx = i + surnameLen + spaceOffset;
+            if (nextCharIdx < chars.length) {
+              const nextChar = chars[nextCharIdx];
+              const givenHash = getDictionaryHash(GIVEN_NAMES_SORTED);
+              const givenCandidates = givenHash.get(nextChar) || [];
 
-            // Try to match given name
-            for (const given of GIVEN_NAMES_SORTED) {
-              const givenLen = matchNameWithSpaces(afterSpaceChars, given);
-              if (givenLen > 0) {
-                // MATCH FOUND: Surname + (Space) + Given
-                const surnamePairs = SURNAME_READINGS[surname];
-                const givenPairs = GIVEN_NAME_READINGS[given];
+              for (const given of givenCandidates) {
+                const givenLen = matchNameWithSpaces(chars, nextCharIdx, given);
+                if (givenLen > 0) {
+                  const surnamePairs = SURNAME_READINGS[surname];
+                  const givenPairs = GIVEN_NAME_READINGS[given];
 
-                // 1. Output Surname
-                const surnameSegment = remainingChars.slice(0, surnameLen).join('');
-                result += generateRubyWithSpaces(surnameSegment, surnamePairs);
+                  result += generateRubyWithSpaces(chars, i, surnameLen, surnamePairs);
+                  result += chars.slice(i + surnameLen, i + surnameLen + spaceOffset).join('');
+                  result += generateRubyWithSpaces(chars, nextCharIdx, givenLen, givenPairs);
 
-                // 2. Output Spacer
-                const spacerSegment = afterSurnameChars.slice(0, spaceOffset).join('');
-                result += spacerSegment; // Preserve exact spaces
-
-                // 3. Output Given Name
-                const givenSegment = afterSpaceChars.slice(0, givenLen).join('');
-                result += generateRubyWithSpaces(givenSegment, givenPairs);
-
-                i += surnameLen + spaceOffset + givenLen;
-                matched = true;
-                break;
+                  i += surnameLen + spaceOffset + givenLen;
+                  matched = true;
+                  break;
+                }
               }
             }
           }
@@ -601,12 +588,12 @@ function autoAnnotateText(text) {
       result += char;
       i++;
     }
+
   }
 
   return result;
 }
 
-// Check if text contains any kanji
 function hasKanji(text) {
   return KANJI_ONLY_PATTERN.test(text);
 }
