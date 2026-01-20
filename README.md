@@ -10,9 +10,9 @@ A Chrome extension that automatically converts hiragana in parentheses to ruby f
 
 | Mode | Description |
 |------|-------------|
-| 🔴 Off | No conversion |
-| 🟡 Bracket-only | Convert `漢字（ひらがな）` format only |
-| 🟢 Auto-annotate | Automatically add furigana to all kanji |
+| **Off** | No conversion - use hotkey to temporarily show annotations |
+| **Bracket-only** | Convert `漢字（ひらがな）` format only |
+| **Auto-annotate** | Automatically add furigana to all kanji |
 
 ### Bracket-only Mode
 
@@ -31,6 +31,7 @@ Into HTML ruby annotations, displaying kana directly above the text.
 | Half-width parentheses | `隣(となり)` |
 | With spaces | `隣 （となり）` |
 | Spaces inside parentheses | `隣 ( となり )` |
+| Mixed kanji+kana words | `受ける（うける）` → 受=う + ける |
 
 ### Auto-annotate Mode
 
@@ -38,14 +39,17 @@ Uses the complete **KANJIDIC dictionary** (13,108 kanji) to automatically add fu
 
 ### Hotkey to Show Annotations
 
-Use a hotkey to show furigana for all kanji, even in Off or Bracket-only mode.
+> **Note**: The hotkey feature is only available when the main mode is set to **Off**. This allows you to keep the page clean by default and temporarily show annotations when needed.
 
 | Setting | Description |
 |---------|-------------|
 | Default | Disabled |
 | Available keys | Control / Alt / Shift / Meta (⌘/⊞) |
-| **Hold mode** | Hold the key to show, release to hide |
+| **Hold mode** | Hold the key to show annotations, release to hide |
 | **Toggle mode** | Press once to show, press again to hide |
+| **Trigger mode** | Choose which annotation style to trigger (Bracket-only or Auto-annotate) |
+
+**Usage scenario**: Set the main mode to "Off" for a clean reading experience, then press and hold (or toggle) the hotkey to temporarily reveal furigana when you encounter unfamiliar kanji.
 
 ### Multi-Language Support
 
@@ -63,11 +67,13 @@ Precisely splits furigana positions:
 | `漢字（かんじ）` | 漢=かん, 字=じ |
 | `教育（きょういく）` | 教=きょう, 育=いく |
 | `日本語（にほんご）` | 日=に, 本=ほん, 語=ご |
+| `受け付ける（うけつける）` | 受=う, け, 付=つ, ける |
 
 **Features**:
 - Complete on'yomi and kun'yomi readings for 13,108 kanji
 - Automatic handling of voiced/semi-voiced sound changes (e.g., し↔じ, か↔が)
 - Number reading support (一二三 → いちにさん)
+- Mixed kanji+kana word support (e.g., 食べる, 読み方)
 
 ## Installation
 
@@ -79,9 +85,13 @@ Precisely splits furigana positions:
 
 ## Usage
 
-- Click the extension icon in the toolbar to select a mode
-- Default mode is **Bracket-only**
-- Settings are saved automatically
+1. Click the extension icon in the toolbar
+2. Select a mode:
+   - **Off**: No annotations (hotkey section appears for temporary viewing)
+   - **Bracket-only**: Only convert existing parenthesized readings
+   - **Auto-annotate**: Add furigana to all kanji automatically
+3. If using "Off" mode, configure a hotkey to temporarily show annotations
+4. Settings are saved automatically
 
 ## File Structure
 
@@ -90,8 +100,8 @@ Precisely splits furigana positions:
 ├── content.js          # Main conversion logic
 ├── kanji_dict.js       # KANJIDIC dictionary (13,108 kanji)
 ├── styles.css          # Ruby annotation styles
-├── popup.html          # Toggle interface
-├── popup.js            # Toggle logic
+├── popup.html          # Settings interface
+├── popup.js            # Settings logic
 └── icons/              # Icons
 ```
 
@@ -117,9 +127,9 @@ Chrome 擴充程式，自動將括號內的平假名轉換為漢字上方的振�
 
 | 模式 | 說明 |
 |------|------|
-| 🔴 關閉 | 不做任何轉換 |
-| 🟡 括號標註 | 只轉換 `漢字（ひらがな）` 格式 |
-| 🟢 自動標註 | 自動為所有漢字添加振假名 |
+| **關閉** | 不做任何轉換，可使用快捷鍵臨時顯示標註 |
+| **括號標註** | 只轉換 `漢字（ひらがな）` 格式 |
+| **自動標註** | 自動為所有漢字添加振假名 |
 
 ### 括號標註模式
 
@@ -138,7 +148,7 @@ Chrome 擴充程式，自動將括號內的平假名轉換為漢字上方的振�
 | 半形括號 | `隣(となり)` |
 | 含空格 | `隣 （となり）` |
 | 括號內空格 | `隣 ( となり )` |
-| **片假名** | `ネット（ネット）` |
+| 漢字假名混合詞 | `受ける（うける）` → 受=う + ける |
 
 ### 自動標註模式
 
@@ -146,14 +156,17 @@ Chrome 擴充程式，自動將括號內的平假名轉換為漢字上方的振�
 
 ### 快捷鍵顯示標註
 
-即使在關閉或括號標註模式下，使用快捷鍵即可顯示所有漢字的振假名。
+> **注意**：快捷鍵功能只在主模式設為「**關閉**」時才會出現。這讓你可以保持頁面乾淨，只在需要時臨時顯示標註。
 
 | 設定 | 說明 |
 |------|------|
-| 預設 | 關閉 |
+| 預設 | 關閉此功能 |
 | 可選快捷鍵 | Control / Alt / Shift / Meta (⌘/⊞) |
-| **按住模式** | 按住顯示，放開恢復 |
+| **按住模式** | 按住顯示標註，放開隱藏 |
 | **切換模式** | 按一下顯示，再按一下隱藏 |
+| **觸發模式** | 選擇要觸發的標註方式（括號標註或自動標註） |
+
+**使用情境**：將主模式設為「關閉」以獲得乾淨的閱讀體驗，遇到不熟悉的漢字時，按住（或切換）快捷鍵即可臨時顯示振假名。
 
 ### 多語言支援
 
@@ -166,16 +179,18 @@ English, 繁體中文, 简体中文, 日本語, 한국어, Español, Português,
 精確分割 furigana 位置：
 
 | 輸入 | 分割結果 |
-|------|---------| 
+|------|---------|
 | `強化（きょうか）` | 強=きょう, 化=か |
 | `漢字（かんじ）` | 漢=かん, 字=じ |
 | `教育（きょういく）` | 教=きょう, 育=いく |
 | `日本語（にほんご）` | 日=に, 本=ほん, 語=ご |
+| `受け付ける（うけつける）` | 受=う, け, 付=つ, ける |
 
 **特色**：
 - 13,108 個漢字的完整音讀 (on'yomi) 和訓讀 (kun'yomi)
 - 自動處理濁音/半濁音變化（如 し↔じ, か↔が）
 - 數字讀音支援（一二三 → いちにさん）
+- 漢字假名混合詞支援（如：食べる、読み方）
 
 ## 安裝
 
@@ -185,11 +200,15 @@ English, 繁體中文, 简体中文, 日本語, 한국어, Español, Português,
 4. 點擊「載入未封裝項目」
 5. 選擇此專案資料夾
 
-## 使用
+## 使用方式
 
-- 點擊工具列上的擴充圖示選擇模式
-- 預設為**括號標註**模式
-- 設定會自動儲存
+1. 點擊工具列上的擴充圖示
+2. 選擇模式：
+   - **關閉**：不顯示標註（會出現快捷鍵設定區，用於臨時查看）
+   - **括號標註**：只轉換原本就有括號標註的文字
+   - **自動標註**：自動為所有漢字加上振假名
+3. 如果使用「關閉」模式，可設定快捷鍵來臨時顯示標註
+4. 設定會自動儲存
 
 ## 檔案結構
 
@@ -198,8 +217,8 @@ English, 繁體中文, 简体中文, 日本語, 한국어, Español, Português,
 ├── content.js          # 主要轉換邏輯
 ├── kanji_dict.js       # KANJIDIC 字典 (13,108 漢字)
 ├── styles.css          # Ruby 標註樣式
-├── popup.html          # 開關介面
-├── popup.js            # 開關邏輯
+├── popup.html          # 設定介面
+├── popup.js            # 設定邏輯
 └── icons/              # 圖示
 ```
 

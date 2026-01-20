@@ -365,25 +365,89 @@ function convertToRuby(text) {
 const KANJI_ONLY_PATTERN = /[\u4E00-\u9FAF]/;
 
 // Auto-annotate text by adding furigana to all kanji using dictionary
+// Priority: place names > compound words > single kanji
 function autoAnnotateText(text) {
   let result = '';
+  let i = 0;
   const chars = [...text];
+  const textLength = chars.length;
 
-  for (let i = 0; i < chars.length; i++) {
+  while (i < textLength) {
     const char = chars[i];
 
     // Check if it's a kanji
     if (KANJI_ONLY_PATTERN.test(char)) {
-      const readings = typeof KANJI_READINGS !== 'undefined' ? KANJI_READINGS[char] : null;
-      if (readings && readings.length > 0) {
-        // Use first reading (most common)
-        const reading = readings[0];
-        result += `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`;
-      } else {
-        result += char;
+      // Try to match place names first (longest match wins)
+      let matched = false;
+
+      if (typeof PLACE_NAMES_SORTED !== 'undefined' && typeof PLACE_READINGS !== 'undefined') {
+        const remainingText = chars.slice(i).join('');
+
+        for (const placeName of PLACE_NAMES_SORTED) {
+          if (remainingText.startsWith(placeName)) {
+            const fullReading = PLACE_READINGS[placeName];
+            const pairs = splitFurigana(placeName, fullReading);
+            result += pairs.map(({ char, reading }) =>
+              `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`
+            ).join('');
+            i += [...placeName].length;
+            matched = true;
+            break;
+          }
+        }
+      }
+
+      // Try to match common words next
+      if (!matched && typeof COMMON_NAMES_SORTED !== 'undefined' && typeof COMMON_READINGS !== 'undefined') {
+        const remainingText = chars.slice(i).join('');
+
+        for (const word of COMMON_NAMES_SORTED) {
+          if (remainingText.startsWith(word)) {
+            const fullReading = COMMON_READINGS[word];
+            const pairs = splitFurigana(word, fullReading);
+            result += pairs.map(({ char, reading }) =>
+              `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`
+            ).join('');
+            i += [...word].length;
+            matched = true;
+            break;
+          }
+        }
+      }
+
+      // Try to match core vocabulary next (uses pre-split pairs)
+      if (!matched && typeof CORE_NAMES_SORTED !== 'undefined' && typeof CORE_READINGS !== 'undefined') {
+        const remainingText = chars.slice(i).join('');
+
+        for (const word of CORE_NAMES_SORTED) {
+          if (remainingText.startsWith(word)) {
+            const pairs = CORE_READINGS[word];
+            // Format is [[ruby, rt], ...]
+            result += pairs.map(([char, reading]) =>
+              `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`
+            ).join('');
+            i += [...word].length;
+            matched = true;
+            break;
+          }
+        }
+      }
+
+      // If no match, use single kanji dictionary
+      if (!matched) {
+        const readings = typeof KANJI_READINGS !== 'undefined' ? KANJI_READINGS[char] : null;
+        if (readings && readings.length > 0) {
+          // Use first reading (most common)
+          const reading = readings[0];
+          result += `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`;
+        } else {
+          result += char;
+        }
+        i++;
       }
     } else {
       result += char;
+      i++;
     }
   }
 
