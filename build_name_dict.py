@@ -51,123 +51,132 @@ def generate_pairs(text, full_reading=None):
     # For now, if we don't have it, we might skip or use a placeholder
     return pairs
 
+def load_jmnedict():
+    jmnedict_path = 'JmnedictFurigana.json'
+    if not os.path.exists(jmnedict_path):
+        print(f"Warning: {jmnedict_path} not found. Skipping Jmnedict.")
+        return {}
+
+    print(f"Loading {jmnedict_path}...")
+    try:
+        with open(jmnedict_path, 'r', encoding='utf-8-sig') as f:
+            data = json.load(f)
+            
+        converted = {}
+        for entry in data:
+            word = entry['text']
+            parts = []
+            for f_part in entry['furigana']:
+                ruby = f_part['ruby']
+                rt = f_part.get('rt', ruby) # Use ruby as reading if rt missing (kana)
+                parts.append([ruby, rt])
+            converted[word] = parts
+        return converted
+    except Exception as e:
+        print(f"Error loading Jmnedict: {e}")
+        return {}
+
 def build():
     print("Building Name Dictionary...")
     
-    name_readings = {}
+    # Load Jmnedict data
+    jmnedict_entries = load_jmnedict()
+    print(f"Loaded {len(jmnedict_entries)} entries from Jmnedict.")
+
+    name_readings = {} # Full dictionary (Jmnedict + others)
     surname_readings = {}
     given_name_readings = {}
     
-    # 1. Build Surnames
+    # 1. Start with Jmnedict as the base for NAME_READINGS
+    name_readings.update(jmnedict_entries)
+
+    # 2. Build Surnames (Keep existing hardcoded logic for categorization, optional)
     for surname in TOP_SURNAMES:
-        pairs = generate_pairs(surname)
-        if not pairs and surname in MANUAL_READINGS: 
-             pairs = MANUAL_READINGS[surname]
-        
-        # If still no pairs, try to load from existing NAME_READINGS or just store simple
-        # For this prototype, we'll try to use what we have in MANUAL or skip
-        # Actually, let's just create entries. Use a simple heuristic or lookup from a map if available.
-        # Since we lack a full dictionary in this script, we'll rely on the existing name_dict.js content 
-        # normally, but here we will just ensure the keys are present for the matcher.
-        # The content.js matcher needs the PAIRS to generate ruby. 
-        # If pairs are missing, we can't generate ruby.
-        if pairs:
-             surname_readings[surname] = pairs
+        if surname in jmnedict_entries:
+            surname_readings[surname] = jmnedict_entries[surname]
+        else:
+            pairs = generate_pairs(surname)
+            if not pairs and surname in MANUAL_READINGS: 
+                 pairs = MANUAL_READINGS[surname]
+            if pairs:
+                 surname_readings[surname] = pairs
+            # Also add to main dict if not present
+            if surname not in name_readings and surname in surname_readings:
+                 name_readings[surname] = surname_readings[surname]
 
-    # 2. Build Given Names
+    # 3. Build Given Names
     for given in COMMON_GIVEN_NAMES:
-        pairs = generate_pairs(given)
-        if not pairs and given in MANUAL_READINGS:
-             pairs = MANUAL_READINGS[given]
-        if pairs:
-            given_name_readings[given] = pairs
-            
-    # 3. Build Full Names (Legacy + High Priority)
-    # We can keep some, but the goal is to use combinatorial.
-    # Let's verify what data we actually have.
-    # Since we can't easily parse Jmdict here without the file and big logic, 
-    # and the user wants to Fix "Suda Masaki", let's ensure those specific ones are in the split dicts.
-    
-    # We need to populate surname_readings and given_name_readings with actual pairs.
-    # Since we are running blindly without the big dict, let's add a quick lookup map from the CURRENT name_dict.js
-    # if we can read it. But we are overwriting it.
-    # Strategy: Parse the EXISTING name_dict.js to recover readings!
-    
-    current_name_dict_path = 'name_dict.js'
-    if os.path.exists(current_name_dict_path):
-        print("Recovering data from existing name_dict.js...")
-        with open(current_name_dict_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-            # Extract JSON part. heavily simplified regex
-            match = re.search(r'const NAME_READINGS = (\{.*?\});', content, re.DOTALL)
-            if match:
-                try:
-                    existing_data = json.loads(match.group(1))
-                    
-                    # Populate surnames
-                    for s in TOP_SURNAMES:
-                        if s in existing_data:
-                            surname_readings[s] = existing_data[s]
-                        elif s in MANUAL_READINGS: # Fallback
-                             surname_readings[s] = MANUAL_READINGS[s]
+        if given in jmnedict_entries:
+             given_name_readings[given] = jmnedict_entries[given]
+        else:
+            pairs = generate_pairs(given)
+            if not pairs and given in MANUAL_READINGS:
+                 pairs = MANUAL_READINGS[given]
+            if pairs:
+                given_name_readings[given] = pairs
+            if given not in name_readings and given in given_name_readings:
+                 name_readings[given] = given_name_readings[given]
 
-                    # Populate given names
-                    # Existing dict only has FULL names usually, but maybe some single names?
-                    # Or we have to scan the full names to extract given names?
-                    # That's hard. Let's look for exact matches of given names in the dict.
-                    for g in COMMON_GIVEN_NAMES:
-                        if g in existing_data:
-                            given_name_readings[g] = existing_data[g]
-                        elif g in MANUAL_READINGS:
-                            given_name_readings[g] = MANUAL_READINGS[g]
-                            
-                    # Start with all existing full names for backward compatibility
-                    name_readings = existing_data
-                    
-                except json.JSONDecodeError:
-                    print("Failed to parse existing name_dict.js")
-
-    # Add Manual overrides to split dicts just in case
+    # 4. Integrate Manual Readings (Priority Overrides)
     for k, v in MANUAL_READINGS.items():
-        if k in TOP_SURNAMES: surname_readings[k] = v
-        if k in COMMON_GIVEN_NAMES: given_name_readings[k] = v
+        name_readings[k] = v
+        # Also update split lists if they are in there
+        if k in surname_readings: surname_readings[k] = v
+        if k in given_name_readings: given_name_readings[k] = v
+
+    # 5. Recover existing data (optional, but Jmnedict is likely superior)
+    # We skip recovering from old name_dict.js to avoid staleness, assuming Jmnedict is the source of truth now.
 
     # Sort keys for matcher
+    # Sorting 160k keys might be slow but necessary for greedy matching if we iterate keys.
+    # However, content.js might just lookup?
+    # content.js: `autoAnnotateText` iterates `dictionaryHashes`.
+    # Wait, `content.js` doesn't iterate `NAME_READINGS` keys directly for matching usually?
+    # Let's check logic: `matchNameWithSpaces` is called.
+    # Actually `content.js` seems to create a `dictionaryHashes` map.
+    # But `autoAnnotateText` iterates... what?
+    # It might need `NAME_NAMES_SORTED` if it does greedy matching against text.
+    # Yes, `const NAME_NAMES_SORTED` is written.
+    # Optimizing: sorting 100k items is fine in Python.
+    
+    print("Sorting keys...")
     sorted_names = sorted(name_readings.keys(), key=len, reverse=True)
     sorted_surnames = sorted(surname_readings.keys(), key=len, reverse=True)
     sorted_given_names = sorted(given_name_readings.keys(), key=len, reverse=True)
 
-    print(f"Surnames: {len(surname_readings)}, Given: {len(given_name_readings)}, Full: {len(name_readings)}")
+    print(f"Surnames: {len(surname_readings)}, Given: {len(given_name_readings)}, Full/Total: {len(name_readings)}")
 
     output_path = 'name_dict.js'
+    print(f"Writing to {output_path}...")
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write("// Specialized Japanese name dictionary (Split & Full)\n")
         
         f.write("const NAME_READINGS = ")
-        json.dump(name_readings, f, ensure_ascii=False, indent=2)
+        json.dump(name_readings, f, ensure_ascii=False) # remove indent for lighter file
         f.write(";\n\n")
         
         f.write("const NAME_NAMES_SORTED = ")
-        json.dump(sorted_names, f, ensure_ascii=False, indent=2)
+        json.dump(sorted_names, f, ensure_ascii=False)
         f.write(";\n\n")
 
         f.write("const SURNAME_READINGS = ")
-        json.dump(surname_readings, f, ensure_ascii=False, indent=2)
+        json.dump(surname_readings, f, ensure_ascii=False)
         f.write(";\n\n")
         
         f.write("const SURNAME_NAMES_SORTED = ")
-        json.dump(sorted_surnames, f, ensure_ascii=False, indent=2)
+        json.dump(sorted_surnames, f, ensure_ascii=False)
         f.write(";\n\n")
 
         f.write("const GIVEN_NAME_READINGS = ")
-        json.dump(given_name_readings, f, ensure_ascii=False, indent=2)
+        json.dump(given_name_readings, f, ensure_ascii=False)
         f.write(";\n\n")
         
         f.write("const GIVEN_NAMES_SORTED = ")
-        json.dump(sorted_given_names, f, ensure_ascii=False, indent=2)
+        json.dump(sorted_given_names, f, ensure_ascii=False)
         f.write(";\n")
 
     print(f"Successfully generated {output_path}")
 
 if __name__ == "__main__":
     build()
+

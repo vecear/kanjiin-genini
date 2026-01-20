@@ -372,6 +372,11 @@ function autoAnnotateText(text) {
       type: 'standard'
     },
     {
+      names: (typeof JDD_NAMES_SORTED !== 'undefined') ? JDD_NAMES_SORTED : [],
+      readings: (typeof JDD_READINGS !== 'undefined') ? JDD_READINGS : {},
+      type: 'standard'
+    },
+    {
       names: (typeof NAME_NAMES_SORTED !== 'undefined') ? NAME_NAMES_SORTED : [],
       readings: (typeof NAME_READINGS !== 'undefined') ? NAME_READINGS : {},
       type: 'standard'
