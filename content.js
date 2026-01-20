@@ -338,6 +338,78 @@ function splitFurigana(chars, furigana) {
 }
 
 
+// Helper to check if text matches a name, skipping spaces
+// Returns matched length (number of characters in text) or 0
+function matchNameWithSpaces(textChars, name) {
+  const nameChars = [...name];
+  let tIdx = 0; // index in textChars
+  let nIdx = 0; // index in nameChars
+  const spaceRegex = /[\s\u3000\u00A0\u200B-\u200D\uFEFF]/; // Include ZWSP, ZWNJ, ZWJ, BOM
+
+  while (nIdx < nameChars.length && tIdx < textChars.length) {
+    const tChar = textChars[tIdx];
+
+    // Skip spaces in text
+    if (spaceRegex.test(tChar)) {
+      tIdx++;
+      continue;
+    }
+
+    // Check match
+    if (tChar !== nameChars[nIdx]) {
+      return 0;
+    }
+
+    tIdx++;
+    nIdx++;
+  }
+
+  // Must match full name
+  if (nIdx === nameChars.length) {
+    return tIdx;
+  }
+
+  return 0;
+}
+
+// Helper to generate ruby with spaces preserved
+// originalText: the text segment from the page (including spaces)
+// readingPairs: array of [char, reading] from dictionary
+function generateRubyWithSpaces(originalText, readingPairs) {
+  let result = '';
+  let tIdx = 0;
+  let pIdx = 0;
+  const textChars = [...originalText];
+  const spaceRegex = /[\s\u3000\u00A0\u200B-\u200D\uFEFF]/;
+
+  while (tIdx < textChars.length) {
+    const char = textChars[tIdx];
+
+    // Output spaces as-is
+    if (spaceRegex.test(char)) {
+      result += char;
+      tIdx++;
+      continue;
+    }
+
+    // Output ruby for matched character
+    if (pIdx < readingPairs.length) {
+      const pair = readingPairs[pIdx];
+      // pair is [char, reading]
+      // We assume text matches dictionary at this point (verified by matchNameWithSpaces)
+      const reading = pair[1];
+      result += `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`;
+      pIdx++;
+    } else {
+      // Should not happen if matched correctly, but fallback
+      result += char;
+    }
+    tIdx++;
+  }
+
+  return result;
+}
+
 function convertToRuby(text) {
   // First, process mixed kanji+kana words (e.g., 受ける（うける）)
   // This must come first to avoid partial matches by FURIGANA_PATTERN
@@ -365,97 +437,159 @@ function convertToRuby(text) {
 const KANJI_ONLY_PATTERN = /[\u4E00-\u9FAF]/;
 
 // Auto-annotate text by adding furigana to all kanji using dictionary
-// Priority: place names > compound words > single kanji
+// Priority: Place Name > Full Name > Common Word > Core Word > (Combinatorial Name) > Single Kanji
 function autoAnnotateText(text) {
   let result = '';
   let i = 0;
   const chars = [...text];
-  const textLength = chars.length;
 
-  while (i < textLength) {
+  // Dictionaries ordered by priority
+  // Each entry: { names: SORTED_KEYS, readings: READING_MAP, type: 'standard'|'combinatorial' }
+  const dictionaries = [
+    {
+      names: (typeof PLACE_NAMES_SORTED !== 'undefined') ? PLACE_NAMES_SORTED : [],
+      readings: (typeof PLACE_READINGS !== 'undefined') ? PLACE_READINGS : {},
+      type: 'standard'
+    },
+    {
+      names: (typeof NAME_NAMES_SORTED !== 'undefined') ? NAME_NAMES_SORTED : [],
+      readings: (typeof NAME_READINGS !== 'undefined') ? NAME_READINGS : {},
+      type: 'standard'
+    },
+    {
+      names: (typeof COMMON_NAMES_SORTED !== 'undefined') ? COMMON_NAMES_SORTED : [],
+      readings: (typeof COMMON_READINGS !== 'undefined') ? COMMON_READINGS : {},
+      type: 'standard'
+    },
+    {
+      names: (typeof CORE_NAMES_SORTED !== 'undefined') ? CORE_NAMES_SORTED : [],
+      readings: (typeof CORE_READINGS !== 'undefined') ? CORE_READINGS : {},
+      type: 'standard'
+    }
+  ];
+
+  while (i < chars.length) {
     const char = chars[i];
 
     // Check if it's a kanji
     if (KANJI_ONLY_PATTERN.test(char)) {
-      // Try to match place names first (longest match wins)
       let matched = false;
+      const remainingChars = chars.slice(i);
 
-      if (typeof PLACE_NAMES_SORTED !== 'undefined' && typeof PLACE_READINGS !== 'undefined') {
-        const remainingText = chars.slice(i).join('');
+      // 1. Try Standard Dictionaries (Place, Name, Common, Core)
+      for (const dict of dictionaries) {
+        if (!dict.names || dict.names.length === 0) continue;
 
-        for (const placeName of PLACE_NAMES_SORTED) {
-          if (remainingText.startsWith(placeName)) {
-            const fullReading = PLACE_READINGS[placeName];
-            const pairs = splitFurigana(placeName, fullReading);
-            result += pairs.map(({ char, reading }) =>
-              `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`
-            ).join('');
-            i += [...placeName].length;
+        // Optimization: Check first char to skip iterating huge lists unnecessarily
+        // (Not easily possible with space skipping, but we can assume match must start with current char)
+
+        for (const word of dict.names) {
+          // Use smart matcher for ALL dictionary lookups
+          const matchLen = matchNameWithSpaces(remainingChars, word);
+
+          if (matchLen > 0) {
+            const pairs = dict.readings[word];
+            const originalSegment = remainingChars.slice(0, matchLen).join('');
+
+            // Handle different reading formats if necessary
+            // Name dict uses specific pairs format, others might use full string or pre-split
+            if (Array.isArray(pairs) && Array.isArray(pairs[0])) {
+              // Already [[char, reading], ...]
+              result += generateRubyWithSpaces(originalSegment, pairs);
+            } else {
+              // Standard dictionary might just give full reading string or pre-split objects
+              // Assuming build scripts normalized this, but let's be safe.
+              // Existing logic assumes 'splitFurigana' needed for some.
+              // Let's assume standard dicts (Place, Common, Core) need splitting
+              // Wait, Name dict is [[char, reading], ...]. 
+              // Place/Common/Core are usually just "reading" string in this codebase's variable naming?
+              // Let's check:
+              // Place: splitFurigana(placeName, fullReading)
+              // Common: splitFurigana(word, fullReading)
+              // Core: pairs = CORE_READINGS[word] -> map
+
+              // To unify, we need to adapt on the fly:
+              if (typeof pairs === 'string') {
+                // Needs splitting
+                const splitPairs = splitFurigana(word, pairs); // splitFurigana expects CLEAN word
+                // But we have spaced text. generateRubyWithSpaces needs [char, reading] aligned to CLEAN word characters.
+                // Yes, splitFurigana(word, pairs) returns [{char, reading}, ...]
+                // We need to convert that to [[char, reading]] format for our helper
+                const pairArray = splitPairs.map(p => [p.char, p.reading]);
+                result += generateRubyWithSpaces(originalSegment, pairArray);
+              } else {
+                // Already pairs (Core dict, Name dict)
+                // Core dict in this codebase: "pairs" is [[ruby, rt], ...]
+                result += generateRubyWithSpaces(originalSegment, pairs);
+              }
+            }
+
+            i += matchLen;
             matched = true;
             break;
           }
         }
+        if (matched) break;
       }
 
-      // Try to match person names (newly added)
-      if (!matched && typeof NAME_NAMES_SORTED !== 'undefined' && typeof NAME_READINGS !== 'undefined') {
-        const remainingText = chars.slice(i).join('');
+      // 2. Try Combinatorial Name Matching (Surname + Given Name)
+      if (!matched &&
+        typeof SURNAME_NAMES_SORTED !== 'undefined' &&
+        typeof GIVEN_NAMES_SORTED !== 'undefined') {
 
-        for (const name of NAME_NAMES_SORTED) {
-          if (remainingText.startsWith(name)) {
-            const pairs = NAME_READINGS[name];
-            // Format is [[ruby, rt], ...]
-            result += pairs.map(([char, reading]) =>
-              `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`
-            ).join('');
-            i += [...name].length;
-            matched = true;
-            break;
+        for (const surname of SURNAME_NAMES_SORTED) {
+          const surnameLen = matchNameWithSpaces(remainingChars, surname);
+          if (surnameLen > 0) {
+            // Found valid surname, check for given name after it
+            // We need to account for potential space between surname and given name
+            // matchNameWithSpaces already consumes inner spaces, but what about separation?
+            // The helper loops through text.
+
+            const afterSurnameChars = remainingChars.slice(surnameLen);
+            let spaceOffset = 0;
+
+            // Skip spaces between surname and given name
+            const spaceRegex = /[\s\u3000\u00A0\u200B-\u200D\uFEFF]/;
+            while (spaceOffset < afterSurnameChars.length && spaceRegex.test(afterSurnameChars[spaceOffset])) {
+              spaceOffset++;
+            }
+
+            const afterSpaceChars = afterSurnameChars.slice(spaceOffset);
+
+            // Try to match given name
+            for (const given of GIVEN_NAMES_SORTED) {
+              const givenLen = matchNameWithSpaces(afterSpaceChars, given);
+              if (givenLen > 0) {
+                // MATCH FOUND: Surname + (Space) + Given
+                const surnamePairs = SURNAME_READINGS[surname];
+                const givenPairs = GIVEN_NAME_READINGS[given];
+
+                // 1. Output Surname
+                const surnameSegment = remainingChars.slice(0, surnameLen).join('');
+                result += generateRubyWithSpaces(surnameSegment, surnamePairs);
+
+                // 2. Output Spacer
+                const spacerSegment = afterSurnameChars.slice(0, spaceOffset).join('');
+                result += spacerSegment; // Preserve exact spaces
+
+                // 3. Output Given Name
+                const givenSegment = afterSpaceChars.slice(0, givenLen).join('');
+                result += generateRubyWithSpaces(givenSegment, givenPairs);
+
+                i += surnameLen + spaceOffset + givenLen;
+                matched = true;
+                break;
+              }
+            }
           }
+          if (matched) break;
         }
       }
 
-      // Try to match common words next
-      if (!matched && typeof COMMON_NAMES_SORTED !== 'undefined' && typeof COMMON_READINGS !== 'undefined') {
-        const remainingText = chars.slice(i).join('');
-
-        for (const word of COMMON_NAMES_SORTED) {
-          if (remainingText.startsWith(word)) {
-            const fullReading = COMMON_READINGS[word];
-            const pairs = splitFurigana(word, fullReading);
-            result += pairs.map(({ char, reading }) =>
-              `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`
-            ).join('');
-            i += [...word].length;
-            matched = true;
-            break;
-          }
-        }
-      }
-
-      // Try to match core vocabulary next (uses pre-split pairs)
-      if (!matched && typeof CORE_NAMES_SORTED !== 'undefined' && typeof CORE_READINGS !== 'undefined') {
-        const remainingText = chars.slice(i).join('');
-
-        for (const word of CORE_NAMES_SORTED) {
-          if (remainingText.startsWith(word)) {
-            const pairs = CORE_READINGS[word];
-            // Format is [[ruby, rt], ...]
-            result += pairs.map(([char, reading]) =>
-              `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`
-            ).join('');
-            i += [...word].length;
-            matched = true;
-            break;
-          }
-        }
-      }
-
-      // If no match, use single kanji dictionary
+      // 3. Fallback: Single Kanji
       if (!matched) {
         const readings = typeof KANJI_READINGS !== 'undefined' ? KANJI_READINGS[char] : null;
         if (readings && readings.length > 0) {
-          // Use first reading (most common)
           const reading = readings[0];
           result += `<ruby>${char}<rp>(</rp><rt>${reading}</rt><rp>)</rp></ruby>`;
         } else {
