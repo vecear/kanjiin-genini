@@ -19,9 +19,10 @@ A Chrome extension that automatically converts hiragana in parentheses to ruby f
 The extension uses a multi-layered dictionary priority system to ensure the most accurate readings are used first:
 
 1. **Place Names** (`place_dict.js`): Comprehensive list of Japanese prefectures, cities, and landmarks with special readings (jukujikun).
-2. **Common Compounds** (`common_dict.js`): Curated list of high-priority words and irregular readings (e.g., 今日, 台風, weather terms).
-3. **Core Vocabulary** (`core_dict.js`): **5,500+ JLPT N1-N5 words** sourced from JMdict with pre-split character-level alignment.
-4. **Single Kanji** (`kanji_dict.js`): Fallback dictionary containing 13,108 kanji for words not found in higher-priority lists.
+2. **Person Names** (`name_dict.js`): **44,000+ names** covering historical figures (e.g., Oda Nobunaga), modern politicians, and celebrities (actors, singers).
+3. **Common Compounds** (`common_dict.js`): Curated list of high-priority words and irregular readings (e.g., 今日, 台風, weather terms).
+4. **Core Vocabulary** (`core_dict.js`): **5,500+ JLPT N1-N5 words** sourced from JMdict with pre-split character-level alignment.
+5. **Single Kanji** (`kanji_dict.js`): Fallback dictionary containing 13,108 kanji for words not found in higher-priority lists.
 
 ### Precise Furigana Alignment
 
@@ -72,7 +73,7 @@ English, 繁體中文, 简体中文, 日本語, 한국어, Español, Português,
 Precisely splits furigana positions:
 
 | Input | Result |
-|-------|--------|
+| :--- | :--- |
 | `強化（きょうか）` | 強=きょう, 化=か |
 | `漢字（かんじ）` | 漢=かん, 字=じ |
 | `教育（きょういく）` | 教=きょう, 育=いく |
@@ -110,6 +111,7 @@ Precisely splits furigana positions:
 ├── manifest.json       # Extension configuration
 ├── content.js          # Main conversion logic
 ├── place_dict.js       # Place names dictionary
+├── name_dict.js        # Person names dictionary (Historical/Modern)
 ├── common_dict.js      # Common words and priority overrides
 ├── core_dict.js        # Core JLPT N1-N5 vocabulary (5,500+ words)
 ├── kanji_dict.js       # KANJIDIC fallback dictionary (13,108 kanji)
@@ -152,9 +154,10 @@ Chrome 擴充程式，自動將括號內的平假名轉換為漢字上方的振�
 本擴充程式使用多層級字典系統，確保最精確的讀法優先顯示：
 
 1. **地名標註** (`place_dict.js`)：完整的日本都道府縣、城市和名勝，包含熟字訓讀法。
-2. **常用詞彙** (`common_dict.js`)：收錄高頻率詞彙與特殊讀音（如：今日、台風、天氣相關術語）。
-3. **核心字典** (`core_dict.js`)：**5,500+ 個 JLPT N1-N5 詞彙**，源自 JMdict 並經過精確的字符級對齊處理。
-4. **單字字典** (`kanji_dict.js`)：包含 13,108 個漢字的備用字典，用於處理未出現在高優先級清單中的漢字。
+2. **人名標註** (`name_dict.js`)：收錄 **44,000+** 筆資料，包含歷史人物（如：織田信長）、現代政治人物及藝人歌手。
+3. **常用詞彙** (`common_dict.js`)：收錄高頻率詞彙與特殊讀音（如：今日、台風、天氣相關術語）。
+4. **核心字典** (`core_dict.js`)：**5,500+ 個 JLPT N1-N5 詞彙**，源自 JMdict 並經過精確的字符級對齊處理。
+5. **單字字典** (`kanji_dict.js`)：包含 13,108 個漢字的備用字典，用於處理未出現在高優先級清單中的漢字。
 
 ### 精確的振假名對齊
 
@@ -205,7 +208,7 @@ English, 繁體中文, 简体中文, 日本語, 한국어, Español, Português,
 精確分割 furigana 位置：
 
 | 輸入 | 分割結果 |
-|-------|---------|
+| :--- | :--- |
 | `強化（きょうか）` | 強=きょう, 化=か |
 | `漢字（かんじ）` | 漢=かん, 字=じ |
 | `教育（きょういく）` | 教=きょう, 育=いく |
@@ -243,6 +246,7 @@ English, 繁體中文, 简体中文, 日本語, 한국어, Español, Português,
 ├── manifest.json       # 擴充程式設定
 ├── content.js          # 主要轉換邏輯
 ├── place_dict.js       # 地名語法字典
+├── name_dict.js        # 人名語法字典
 ├── common_dict.js      # 常用詞與優先權設定
 ├── core_dict.js        # 核心 JLPT N1-N5 詞彙 (5,500+ 詞)
 ├── kanji_dict.js       # KANJIDIC 備用字典 (13,108 漢字)
@@ -258,6 +262,6 @@ English, 繁體中文, 简体中文, 日本語, 한국어, Español, Português,
 - **JLPT Vocabulary**: [tentoumushii/yomitan-jlpt-vocab-json](https://github.com/tentoumushii/yomitan-jlpt-vocab-json).
 - **JMdict Furigana**: [Doublevil/JmdictFurigana](https://github.com/Doublevil/JmdictFurigana) 以實現精確分割。
 
-## License
+## 授權條款
 
 MIT
